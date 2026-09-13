@@ -53,7 +53,7 @@ Want to contribute? Read the [Contributing](#contributing) section at the bottom
 **CDN**
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.0.0rc.1/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prims2d.min.js"></script>
 ```
 
 **Direct Download**
@@ -274,7 +274,7 @@ This is the simplest approach. No build tools, no package managers, no configura
 Include the engine directly from a hosted URL. Replace the placeholder with the actual CDN address.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.0.0rc.1/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prims2d.min.js"></script>
 ```
 
 **Option 3: Source files (for engine development)**
