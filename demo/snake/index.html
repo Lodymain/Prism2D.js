@@ -28,19 +28,16 @@
 <script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prims2d.min.js"></script>
 
 <script>
-// Inicializa Prism2D
 prism(400, 400, "container")
   .mode("pixel")
   .quality("master")
   .bg("#0f3460");
 
-// Constantes
 var GRID_SIZE = 20;
 var COLS = 20;
 var ROWS = 20;
 var INITIAL_SPEED = 0.12;
 
-// Variáveis do jogo
 var gameState = {
   snake: [],
   food: { x: 10, y: 10 },
@@ -52,7 +49,6 @@ var gameState = {
   moveCounter: 0
 };
 
-// Inicializa a cobra
 function initSnake() {
   gameState.snake = [
     { x: 10, y: 10 },
@@ -68,7 +64,6 @@ function initSnake() {
   spawnFood();
 }
 
-// Gera comida aleatória
 function spawnFood() {
   var isOnSnake = true;
   while (isOnSnake) {
@@ -87,7 +82,6 @@ function spawnFood() {
   }
 }
 
-// Verifica se a cobra comeu a si mesma
 function checkSelfCollision() {
   var head = gameState.snake[0];
   for (var i = 1; i < gameState.snake.length; i++) {
@@ -98,7 +92,6 @@ function checkSelfCollision() {
   return false;
 }
 
-// Verifica colisão com parede
 function checkWallCollision() {
   var head = gameState.snake[0];
   if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
@@ -107,13 +100,11 @@ function checkWallCollision() {
   return false;
 }
 
-// Reinicia o jogo
 function resetGame() {
   gameState.gameOver = false;
   initSnake();
 }
 
-// Cena principal
 prism.scene("play")
   .on("update", function (dt) {
     if (gameState.gameOver) {
@@ -123,7 +114,6 @@ prism.scene("play")
       return;
     }
 
-    // Detecta mudança de direção
     if (prism.keyHit("ArrowRight") || prism.keyHit("d")) {
       if (gameState.direction.x !== -1) {
         gameState.nextDirection = { x: 1, y: 0 };
@@ -145,7 +135,6 @@ prism.scene("play")
       }
     }
 
-    // Movimenta a cobra
     gameState.moveCounter += INITIAL_SPEED * gameState.speedMultiplier;
     
     if (gameState.moveCounter >= 1) {
@@ -158,7 +147,6 @@ prism.scene("play")
         y: head.y + gameState.direction.y
       };
 
-      // Verifica colisão com parede
       if (checkWallCollision.call(
             { snake: gameState.snake.concat([newHead]) },
             newHead
@@ -172,7 +160,6 @@ prism.scene("play")
 
       gameState.snake.unshift(newHead);
 
-      // Verifica colisão com comida
       if (newHead.x === gameState.food.x && newHead.y === gameState.food.y) {
         gameState.score += 10;
         gameState.speedMultiplier += 0.1;
@@ -181,14 +168,12 @@ prism.scene("play")
         gameState.snake.pop();
       }
 
-      // Verifica colisão com a própria cobra
       if (checkSelfCollision()) {
         gameState.gameOver = true;
       }
     }
   })
   .on("draw", function () {
-    // Desenha grid
     for (var x = 0; x < COLS; x++) {
       for (var y = 0; y < ROWS; y++) {
         prism.drawRectLine(
@@ -202,7 +187,6 @@ prism.scene("play")
       }
     }
 
-    // Desenha comida (vermelho)
     prism.drawRect(
       gameState.food.x * GRID_SIZE + 2,
       gameState.food.y * GRID_SIZE + 2,
@@ -211,7 +195,6 @@ prism.scene("play")
       "#e94560"
     );
 
-    // Desenha cobra (verde para cabeça, verde mais escuro para corpo)
     for (var i = 0; i < gameState.snake.length; i++) {
       var segment = gameState.snake[i];
       var color = i === 0 ? "#00d4ff" : "#0aff0a";
@@ -224,7 +207,6 @@ prism.scene("play")
         color
       );
 
-      // Desenha olhos na cabeça
       if (i === 0) {
         prism.drawCircle(
           segment.x * GRID_SIZE + 6,
@@ -241,7 +223,6 @@ prism.scene("play")
       }
     }
 
-    // Desenha score
     prism.drawText("Score: " + gameState.score, 10, 10, {
       color: "#00d4ff",
       size: 14,
@@ -251,7 +232,6 @@ prism.scene("play")
       outlineWidth: 2
     });
 
-    // Desenha comprimento da cobra
     prism.drawText("Length: " + gameState.snake.length, 10, 28, {
       color: "#0aff0a",
       size: 14,
@@ -261,14 +241,11 @@ prism.scene("play")
       outlineWidth: 2
     });
 
-    // Desenha game over
     if (gameState.gameOver) {
-      // Overlay semi-transparente
       prism.alpha(0.7);
       prism.drawRect(0, 0, 400, 400, "#000");
       prism.alpha(1);
 
-      // Texto de game over
       prism.drawText("GAME OVER", 70, 150, {
         color: "#e94560",
         size: 36,
@@ -298,7 +275,6 @@ prism.scene("play")
 
 initSnake();
 prism.play("play").loop();
-
 </script>
 </body>
 </html>
