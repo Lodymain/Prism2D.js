@@ -1,0 +1,40 @@
+{
+  "name": "prism2d",
+  "version": "1.0.0",
+  "description": "Prism2D.js is a brutally minimal 2D game engine for the browser. Zero boilerplate, no dependencies, and absolute control — built on HTML5 Canvas for simple and flexible game development.",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lodymain/Prism2D.js.git"
+  },
+  "keywords": [
+    "prism2d",
+    "canvas",
+    "html5-canvas",
+    "2d",
+    "javascript",
+    "game-engine",
+    "rendering",
+    "graphics",
+    "2d-graphics"
+  ],
+  "author": "Lodymain",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Lodymain/Prism2D.js/issues"
+  },
+  "homepage": "https://github.com/Lodymain/Prism2D.js#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ]
+}
