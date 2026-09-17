@@ -3,8 +3,6 @@
 
 # Prism2D.js
 
-# Prism2D.js
-
 <p align="center">
   <strong>Brutally minimal 2D game engine for the browser.</strong>
   <br>
