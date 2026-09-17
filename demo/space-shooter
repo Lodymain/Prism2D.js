@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Space Shooter - Prism2D</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.js"></script>
+<script>
+
+prism(640, 480).mode("smooth").quality("master").bg("#0a0a1a");
+
+var W = 640, H = 480;
+
+var player = prism.rect(W / 2 - 12, H - 60, 24, 24)
+  .color("#4fc3f7")
+  .kinematic()
+  .tagged("player")
+  .maxSpeed(300);
+
+var bullets = [];
+var enemies = [];
+var powerups = [];
+var stars = [];
+
+for (var i = 0; i < 60; i++) {
+  stars.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    speed: 20 + Math.random() * 80,
+    size: 1 + Math.random() * 2,
+    color: Math.random() > 0.7 ? "#4fc3f7" : "#fff"
+  });
+}
+
+var score = 0;
+var lives = 3;
+var wave = 1;
+var enemiesInWave = 5;
+var enemiesLeft = 0;
+var spawnTimer = 0;
+var fireTimer = 0;
+var fireRate = 0.15;
+var gameOver = false;
+var multiShot = 1;
+var powerupTimer = 0;
+
+var explosionFx = prism.emitter({
+  rate: 0, max: 300,
+  minLife: 0.3, maxLife: 0.8,
+  minSpeed: 60, maxSpeed: 220,
+  minSize: 2, maxSize: 6, endSize: 0,
+  colors: ["#ff4757", "#ffa502", "#ffd32a", "#fff"],
+  shape: "circle", fadeOut: true, friction: 2
+});
+
+var thrustFx = prism.emitter({
+  rate: 0, max: 100,
+  minLife: 0.2, maxLife: 0.4,
+  minSpeed: 30, maxSpeed: 80,
+  minAngle: Math.PI * 0.4, maxAngle: Math.PI * 0.6,
+  minSize: 2, maxSize: 4, endSize: 0,
+  colors: ["#4fc3f7", "#fff", "#00d2ff"],
+  shape: "rect", fadeOut: true, friction: 1
+});
+
+var powerupFx = prism.emitter({
+  rate: 0, max: 150,
+  minLife: 0.4, maxLife: 0.8,
+  minSpeed: 40, maxSpeed: 120,
+  minSize: 2, maxSize: 5, endSize: 0,
+  colors: ["#2ed573", "#fff", "#7bed9f"],
+  shape: "circle", fadeOut: true, friction: 2
+});
+
+function spawnEnemy() {
+  var type = Math.random();
+  var e;
+  if (type < 0.7) {
+    e = prism.rect(Math.random() * (W - 30), -30, 22, 22).color("#ff4757").kinematic().tagged("enemy");
+    e.hp = 1;
+    e.speed = 80 + wave * 15;
+    e.points = 10;
+    e.zigzag = false;
+  } else if (type < 0.9) {
+    e = prism.rect(Math.random() * (W - 40), -40, 30, 30).color("#e74c3c").kinematic().tagged("enemy");
+    e.hp = 2;
+    e.speed = 60 + wave * 10;
+    e.points = 25;
+    e.zigzag = true;
+    e.zigTime = 0;
+  } else {
+    e = prism.rect(Math.random() * (W - 50), -50, 40, 40).color("#c0392b").kinematic().tagged("enemy");
+    e.hp = 4;
+    e.speed = 40 + wave * 8;
+    e.points = 50;
+    e.zigzag = false;
+  }
+  enemies.push(e);
+}
+
+function spawnPowerup(x, y) {
+  var p = prism.rect(x, y, 16, 16).color("#2ed573").kinematic().tagged("powerup");
+  p.vy = 80;
+  powerups.push(p);
+}
+
+function shoot() {
+  var cx = player.centerX();
+  var cy = player.y;
+  for (var i = 0; i < multiShot; i++) {
+    var offset = (i - (multiShot - 1) / 2) * 12;
+    var b = prism.rect(cx - 2 + offset, cy - 8, 4, 10).color("#ffd32a").kinematic().tagged("bullet");
+    b.vy = -500;
+    b.life = 2;
+    bullets.push(b);
+  }
+  prism.beep(1200, 0.04, 0.08, "square");
+}
+
+function damageEnemy(e, x, y) {
+  e.hp--;
+  if (e.hp <= 0) {
+    score += e.points;
+    explosionFx.at(e.centerX(), e.centerY()).explode(25);
+    prism.beep(200, 0.15, 0.15, "sawtooth");
+
+    if (Math.random() < 0.12) {
+      spawnPowerup(e.x, e.y);
+    }
+
+    var idx = enemies.indexOf(e);
+    if (idx > -1) enemies.splice(idx, 1);
+    e.kill();
+    enemiesLeft--;
+  } else {
+    explosionFx.at(x, y).explode(6);
+  }
+}
+
+function damagePlayer() {
+  lives--;
+  explosionFx.at(player.centerX(), player.centerY()).explode(30);
+  prism.beep(120, 0.4, 0.2, "sawtooth");
+  multiShot = 1;
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    player.at(W / 2 - 12, H - 60);
+  }
+}
+
+prism.scene("menu")
+  .on("update", function () {
+    if (prism.keyHit(" ") || prism.keyHit("Space") || prism.mouse.hit()) {
+      score = 0; lives = 3; wave = 1;
+      enemiesInWave = 5;
+      enemiesLeft = enemiesInWave;
+      multiShot = 1;
+      gameOver = false;
+      for (var i = enemies.length - 1; i >= 0; i--) { enemies[i].kill(); }
+      enemies = [];
+      for (var j = bullets.length - 1; j >= 0; j--) { bullets[j].kill(); }
+      bullets = [];
+      for (var k = powerups.length - 1; k >= 0; k--) { powerups[k].kill(); }
+      powerups = [];
+      player.at(W / 2 - 12, H - 60);
+      prism.play("game");
+    }
+  })
+  .on("draw", function () {
+    for (var s = 0; s < stars.length; s++) {
+      var st = stars[s];
+      prism.drawRect(st.x, st.y, st.size, st.size, st.color);
+    }
+    prism.drawText("SPACE SHOOTER", W / 2, H / 3, {
+      color: "#fff", size: 42, align: "center", baseline: "middle", bold: true,
+      outline: true, outlineColor: "#4fc3f7", outlineWidth: 3
+    });
+    prism.drawText("Tap or SPACE to Start", W / 2, H / 2 + 20, {
+      color: "#aaa", size: 18, align: "center", baseline: "middle"
+    });
+    prism.drawText("Arrows/WASD = Move  |  Auto-fire", W / 2, H / 2 + 60, {
+      color: "#666", size: 14, align: "center", baseline: "middle"
+    });
+    prism.drawText("Touch: drag anywhere", W / 2, H / 2 + 90, {
+      color: "#555", size: 12, align: "center", baseline: "middle"
+    });
+  });
+
+prism.scene("game")
+  .on("update", function (dt) {
+    if (gameOver) {
+      if (prism.keyHit(" ") || prism.keyHit("Space") || prism.mouse.hit()) {
+        prism.play("menu");
+      }
+      return;
+    }
+
+    for (var s = 0; s < stars.length; s++) {
+      var st = stars[s];
+      st.y += st.speed * dt;
+      if (st.y > H) { st.y = -5; st.x = Math.random() * W; }
+    }
+
+    var ax = prism.axisX();
+    var ay = prism.axisY();
+
+    if (prism._touchActive && prism._touches.length > 0) {
+      var t = prism._touches[0];
+      var tx = t.x - player.w / 2;
+      var ty = t.y - player.h / 2;
+      var dx = tx - player.x;
+      var dy = ty - player.y;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d > 5) {
+        player.vx = (dx / d) * 300;
+        player.vy = (dy / d) * 300;
+      } else {
+        player.stop();
+      }
+    } else {
+      player.moveAxis(ax, ay, 260);
+    }
+
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.w > W) player.x = W - player.w;
+    if (player.y < 0) player.y = 0;
+    if (player.y + player.h > H) player.y = H - player.h;
+
+    thrustFx.at(player.centerX(), player.y + player.h).emit(2);
+
+    fireTimer += dt;
+    if (fireTimer >= fireRate) {
+      shoot();
+      fireTimer = 0;
+    }
+
+    spawnTimer += dt;
+    var spawnInterval = Math.max(0.4, 1.5 - wave * 0.1);
+    if (spawnTimer >= spawnInterval && enemies.length < 8 && enemiesLeft > enemies.length) {
+      spawnEnemy();
+      spawnTimer = 0;
+    }
+
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      var e = enemies[i];
+      e.vy = e.speed;
+      if (e.zigzag) {
+        e.zigTime += dt;
+        e.vx = Math.sin(e.zigTime * 3) * 100;
+      }
+      if (e.y > H + 50) {
+        enemies.splice(i, 1);
+        e.kill();
+        enemiesLeft--;
+        continue;
+      }
+      if (prism.collide(player, e)) {
+        damagePlayer();
+        var idx = enemies.indexOf(e);
+        if (idx > -1) enemies.splice(idx, 1);
+        e.kill();
+        enemiesLeft--;
+      }
+    }
+
+    for (var b = bullets.length - 1; b >= 0; b--) {
+      var bul = bullets[b];
+      bul.life -= dt;
+      if (bul.life <= 0 || bul.y < -20) {
+        bullets.splice(b, 1);
+        bul.kill();
+        continue;
+      }
+      for (var j = enemies.length - 1; j >= 0; j--) {
+        if (prism.collide(bul, enemies[j])) {
+          damageEnemy(enemies[j], bul.centerX(), bul.centerY());
+          bullets.splice(b, 1);
+          bul.kill();
+          break;
+        }
+      }
+    }
+
+    for (var p = powerups.length - 1; p >= 0; p--) {
+      var pu = powerups[p];
+      if (pu.y > H) {
+        powerups.splice(p, 1);
+        pu.kill();
+        continue;
+      }
+      if (prism.collide(player, pu)) {
+        powerupFx.at(pu.centerX(), pu.centerY()).explode(20);
+        multiShot = Math.min(multiShot + 1, 5);
+        powerupTimer = 8;
+        prism.beep(800, 0.1, 0.2, "sine");
+        prism.wait(0.05, function () { prism.beep(1200, 0.1, 0.2, "sine"); });
+        powerups.splice(p, 1);
+        pu.kill();
+      }
+    }
+
+    if (powerupTimer > 0) {
+      powerupTimer -= dt;
+      if (powerupTimer <= 0 && multiShot > 1) {
+        multiShot = 1;
+      }
+    }
+
+    if (enemiesLeft <= 0 && enemies.length === 0) {
+      wave++;
+      enemiesInWave = 5 + wave * 2;
+      enemiesLeft = enemiesInWave;
+    }
+  })
+  .on("draw", function () {
+    for (var s = 0; s < stars.length; s++) {
+      var st = stars[s];
+      prism.drawRect(st.x, st.y, st.size, st.size, st.color);
+    }
+
+    for (var i = 0; i < enemies.length; i++) enemies[i].draw();
+    for (var b = 0; b < bullets.length; b++) bullets[b].draw();
+    for (var p = 0; p < powerups.length; p++) {
+      powerups[p].draw();
+      prism.drawText("+", powerups[p].centerX(), powerups[p].centerY(), {
+        color: "#fff", size: 14, align: "center", baseline: "middle", bold: true
+      });
+    }
+    player.draw();
+
+    prism.drawParticles();
+
+    prism.drawText("SCORE: " + score, 10, 10, {
+      color: "#fff", size: 16, outline: true, outlineColor: "#000", outlineWidth: 2
+    });
+    prism.drawText("WAVE: " + wave, 10, 32, {
+      color: "#ffd32a", size: 14, outline: true, outlineColor: "#000", outlineWidth: 2
+    });
+    prism.drawText("LIVES: " + lives, W - 10, 10, {
+      color: "#ff4757", size: 16, align: "right", outline: true, outlineColor: "#000", outlineWidth: 2
+    });
+    if (multiShot > 1) {
+      prism.drawText("MULTI x" + multiShot + " (" + Math.ceil(powerupTimer) + "s)", W / 2, 10, {
+        color: "#2ed573", size: 14, align: "center", outline: true, outlineColor: "#000", outlineWidth: 2
+      });
+    }
+
+    if (gameOver) {
+      prism.alpha(0.7);
+      prism.drawRect(0, 0, W, H, "#000");
+      prism.alpha(1);
+      prism.drawText("GAME OVER", W / 2, H / 2 - 30, {
+        color: "#ff4757", size: 48, align: "center", baseline: "middle", bold: true
+      });
+      prism.drawText("Score: " + score + "  |  Wave: " + wave, W / 2, H / 2 + 20, {
+        color: "#fff", size: 20, align: "center", baseline: "middle"
+      });
+      prism.drawText("Tap or SPACE for Menu", W / 2, H / 2 + 60, {
+        color: "#aaa", size: 16, align: "center", baseline: "middle"
+      });
+    }
+  });
+
+prism.play("menu").loop();
+
+</script>
+</body>
+</html>
