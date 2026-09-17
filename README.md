@@ -94,8 +94,7 @@ npm install prism2d
 
 ## Game Demo
 
-<img src="docs/game-1
-  -demo.gif" alt="Demonstração" width="700">
+<img src="docs/game-1-demo.gif" alt="Demonstração" width="700">
 
 ## What is Prism2D
 
