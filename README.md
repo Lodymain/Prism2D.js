@@ -92,6 +92,11 @@ npm install prism2d
 
 <br>
 
+## Game Demo
+
+<img src="docs/game-1
+  -demo.gif" alt="Demonstração" width="700">
+
 ## What is Prism2D
 
 Prism2D is a complete 2D game engine that runs entirely in the browser using the HTML5 Canvas API. It was built from December 2024 to September 2026 with a single mission: eliminate every piece of unnecessary complexity from 2D game development while keeping the programmer in full control.
