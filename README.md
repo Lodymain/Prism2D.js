@@ -21,12 +21,12 @@
 
 | | |
 |---|---|
-| **Version** | 1.0.0rc.1 |
+| **Version** | 1.0.0 |
 | **License** | MIT |
 | **Started** | December 06, 2024 |
 | **Released** | September 13, 2026 |
 | **Engine** | HTML5 Canvas 2D |
-| **Size** | ~59.42KB (unminified) |
+| **Size** | ~62KB (unminified) |
 | **Dependencies** | None |
 
 <br>
@@ -38,13 +38,33 @@
 **Contributors**
 
 
-| [@Lodymain] | [engine,renderer,camera ,collision ,] |
+| [@Lodymain] | [engine, renderer, camera, collision, particles] |
 
-| [@ByteLands] | [documentation, input, Test the project,Tilemaps] |
+| [@ByteLands] | [documentation, input, Test the project, Tilemaps] |
 
-| [@kavdemo] | [scenes,renderer sprites,] |
+| [@kavdemo] | [scenes, renderer sprites, audio] |
 
 Want to contribute? Read the [Contributing](#contributing) section at the bottom of this document.
+
+<br>
+
+## Development Environment
+
+Prism2D was fully developed in our own web-based IDE, built from scratch by the team specifically for this project. You can use the same tool to write, test and ship your Prism2D games directly in the browser, no local installation required.
+
+<br>
+
+## About the Release
+
+The project was actually finished a long time ago, and version 1.0.0 was originally planned to be published well before the 1.0.0rc.1 release candidate. Due to internal reviews and extra bug hunting rounds, the release order ended up shifting, and this final 1.0.0 is now the official public version.
+
+The next planned release is **1.5.2**, which will bring new functions and new systems to the engine. Only that is confirmed for now.
+
+<br>
+
+## Commercial Use
+
+You are free to use Prism2D to create commercial games, paid games, free games, game jams, prototypes, educational projects, or anything else. There are no royalties, no revenue splits, no license fees. The MIT license lets you do whatever you want with it.
 
 <br>
 
@@ -53,15 +73,15 @@ Want to contribute? Read the [Contributing](#contributing) section at the bottom
 **CDN**
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.js"></script>
 ```
 
 **Direct Download**
 
-Download `prism2d.min.js` from the [Releases] https://github.com/Lodymain/Prism2D.js/releases page and include it in your project.
+Download `prism2d.js` from the [Releases](https://github.com/Lodymain/Prism2D.js/releases) page and include it in your project.
 
 ```html
-<script src="prism2d.min.js"></script>
+<script src="prism2d.js"></script>
 ```
 
 **npm (coming soon)**
@@ -82,9 +102,9 @@ At the same time, Prism2D never locks you out. The raw canvas context is always 
 
 <br>
 
-## What is Included in Version 1.0.0rc.1
+## What is Included in Version 1.0.0
 
-This release candidate contains every system needed to build complete 2D games.
+This stable release contains every system needed to build complete 2D games.
 
 **Core Engine**
 - Fixed timestep game loop at 60 updates per second
@@ -105,6 +125,13 @@ This release candidate contains every system needed to build complete 2D games.
 - Blend mode control
 - Text with outline support and measurement
 - Canvas transform helpers with push/pop state management
+
+**Particles**
+- Emitter factory with continuous or burst emission
+- Configurable life, speed, angle, size, colors, shape, gravity, friction, spread
+- Automatic update inside the engine loop
+- Rectangle and circle particle shapes
+- Fade-out and size interpolation over lifetime
 
 **Game Objects**
 - Rectangle, circle, and sprite factories
@@ -198,11 +225,39 @@ This release candidate contains every system needed to build complete 2D games.
 - Touch device detection
 - Automatic canvas coordinate correction for any scaling
 
+**Audio**
+- Load and play sound files with volume, loop and playback rate
+- Batch sound loading with callback
+- Beep generator using Web Audio for quick synthesized effects
+
 **Utilities**
 - Random integer and float generation
 - Clamp, distance, angle, linear interpolation
 - Pixel snapping based on rendering mode
 - Text width measurement
+
+<br>
+
+## Bugs Fixed in 1.0.0
+
+The following bugs from previous internal builds and the 1.0.0rc.1 candidate were fixed in this stable release.
+
+- Fixed a double pixel-rounding issue between the renderer and the camera that caused a 1-pixel shake while moving inside a camera scope.
+- Fixed sprite rendering not respecting natural image size when the image finished loading after the sprite was created.
+- Fixed input state being cleared before scene draw callbacks, which made `keyHit` and `mouse.hit` unreliable inside scenes.
+- Fixed swept AABB producing false collisions when velocity on one axis was exactly zero.
+- Fixed circle vs rectangle resolution when the circle center was exactly inside the rectangle.
+- Fixed contacts dictionary leaking pairs when an object was killed, causing ghost `onLeave` and `onEnter` events.
+- Fixed tilemap camera culling ignoring camera offset and zoom, which caused tiles to pop in and out at the edges.
+- Fixed mouse world coordinates ignoring camera shake, breaking aiming during screen shake.
+- Fixed quality mode `"master"` doubling the internal resolution when combined with certain scale modes.
+- Fixed touch input losing the primary pointer when a secondary finger was released first.
+
+<br>
+
+## Next Version
+
+The next release will be **1.5.2**. It will introduce new functions and new systems on top of everything already available in 1.0.0. Details will be announced when it drops.
 
 <br>
 
@@ -226,7 +281,7 @@ Create a file called `index.html` and paste this code. Open it in any modern bro
   </style>
 </head>
 <body>
-<script src="prism2d.min.js"></script>
+<script src="prism2d.js"></script>
 <script>
 
 prism(400, 300).bg("#222");
@@ -260,10 +315,10 @@ There are three ways to add Prism2D to your project.
 
 **Option 1: Direct download (recommended)**
 
-Download `prism2d.min.js` from the releases page. Place it next to your HTML file. Include it with a script tag before your game code.
+Download `prism2d.js` from the releases page. Place it next to your HTML file. Include it with a script tag before your game code.
 
 ```html
-<script src="prism2d.min.js"></script>
+<script src="prism2d.js"></script>
 <script src="game.js"></script>
 ```
 
@@ -274,7 +329,7 @@ This is the simplest approach. No build tools, no package managers, no configura
 Include the engine directly from a hosted URL. Replace the placeholder with the actual CDN address.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.js"></script>
 ```
 
 **Option 3: Source files (for engine development)**
@@ -284,13 +339,16 @@ If you want to read, modify, or contribute to the engine source code, the projec
 ```html
 <script src="src/index.js"></script>
 <script src="src/core/engine.js"></script>
+<script src="src/core/loop.js"></script>
 <script src="src/core/scenes.js"></script>
 <script src="src/input/input.js"></script>
 <script src="src/graphics/renderer.js"></script>
 <script src="src/graphics/sprites.js"></script>
+<script src="src/graphics/particles.js"></script>
 <script src="src/physics/aabb.js"></script>
 <script src="src/physics/tilemap.js"></script>
 <script src="src/camera/camera.js"></script>
+<script src="src/audio/audio.js"></script>
 ```
 
 The order matters because each file extends the `prism` object created by the previous files.
@@ -544,6 +602,112 @@ prism.blend("source-over"); // reset to normal
 
 Available blend modes include `"source-over"` (default), `"lighter"` (additive), `"multiply"`, `"screen"`, `"overlay"`, `"darken"`, `"lighten"`, `"color-dodge"`, `"color-burn"`, and all other Canvas composite operations.
 
+### Particles
+
+Prism2D includes a built-in particle system. You can create explosions, trails, smoke, sparks, magic effects and more using `prism.emitter`. Emitters are updated automatically by the engine loop, you only need to draw them.
+
+**Creating an emitter**
+
+```javascript
+var sparks = prism.emitter({
+  rate: 0,
+  max: 100,
+  minLife: 0.3, maxLife: 0.8,
+  minSpeed: 60, maxSpeed: 180,
+  minSize: 2, maxSize: 5,
+  endSize: 0,
+  colors: ["#ffd32a", "#fff", "#ff8a65"],
+  shape: "circle",
+  gravity: 200,
+  friction: 2,
+  fadeOut: true
+});
+```
+
+**All configuration options**
+
+| Option | Description |
+|---|---|
+| `x`, `y` | Emitter position |
+| `rate` | Continuous particles per second (0 disables continuous emission) |
+| `burst` | Particles emitted in a single burst when emitter starts |
+| `max` | Hard cap of live particles |
+| `minLife`, `maxLife` | Lifetime range in seconds |
+| `minSpeed`, `maxSpeed` | Speed range |
+| `minAngle`, `maxAngle` | Emission angle range in radians |
+| `minSize`, `maxSize` | Starting size range |
+| `endSize` | Final size at end of life |
+| `colors` | Array of colors (one is randomly picked) |
+| `shape` | `"rect"` or `"circle"` |
+| `gravity` | Vertical gravity applied per second |
+| `friction` | Velocity dampening per second |
+| `spread` | Random position offset around emitter |
+| `fadeOut` | If true, alpha fades to 0 over lifetime |
+
+**Moving the emitter and firing it**
+
+```javascript
+// change position
+sparks.at(player.centerX(), player.centerY());
+
+// emit N particles right now
+sparks.emit(5);
+
+// emit a burst (uses `burst` value or the number you pass)
+sparks.explode(30);
+```
+
+**Continuous vs burst**
+
+```javascript
+// continuous emitter (rain, fire, trails)
+var trail = prism.emitter({
+  rate: 40, max: 200,
+  minLife: 0.4, maxLife: 0.8,
+  minSpeed: 10, maxSpeed: 50,
+  colors: ["#4fc3f7", "#fff"]
+});
+
+// one-shot explosion
+var boom = prism.emitter({
+  rate: 0, max: 200,
+  minLife: 0.4, maxLife: 1.0,
+  minSpeed: 80, maxSpeed: 240,
+  colors: ["#ff4757", "#ffa502", "#fff"]
+});
+boom.at(enemy.centerX(), enemy.centerY()).explode(40);
+```
+
+**Drawing**
+
+Call `prism.drawParticles()` once per frame to draw all active emitters.
+
+```javascript
+prism.drawParticles();
+```
+
+You can also draw a single emitter manually.
+
+```javascript
+sparks.draw();
+```
+
+**Control methods**
+
+```javascript
+sparks.stop();          // stop emitting (existing particles stay alive)
+sparks.start();         // resume emitting
+sparks.clear();         // remove all live particles
+sparks.count();         // number of live particles
+sparks.dead();          // true when stopped and no particles remain
+```
+
+**Clearing all particles globally**
+
+```javascript
+prism.clearParticles();
+```
+
 ### Game Objects
 
 Game objects are plain JavaScript objects created by factory functions. They have no hidden classes, no prototype chains, no inheritance. Every method returns the object itself for chaining.
@@ -706,6 +870,50 @@ The first touch point is automatically mapped to the mouse. `prism.mouse.hit()` 
 ```javascript
 prism.isTouch()            // true if touch device
 var t = prism.touches();   // array of { x, y, id }
+```
+
+### Audio
+
+Prism2D includes a simple audio system built on top of the HTML Audio API and Web Audio.
+
+**Loading sounds**
+
+```javascript
+prism.loadSound("jump", "sfx/jump.wav");
+
+prism.loadSounds({
+  jump: "sfx/jump.wav",
+  hit:  "sfx/hit.wav",
+  coin: "sfx/coin.wav"
+}, function () {
+  // all sounds loaded, start the game
+  prism.play("game").loop();
+});
+```
+
+**Playing sounds**
+
+```javascript
+prism.playSound("jump");
+prism.playSound("coin", { volume: 0.5 });
+prism.playSound("music", { loop: true, volume: 0.3 });
+prism.playSound("hit", { rate: 1.2 });   // playback rate
+```
+
+**Stopping looped sounds**
+
+```javascript
+prism.stopSound("music");
+prism.soundVolume("music", 0.1);
+```
+
+**Quick synthesized beeps**
+
+Use `prism.beep(freq, duration, volume, type)` when you want retro-style sound effects without loading files. `type` can be `"sine"`, `"square"`, `"sawtooth"` or `"triangle"`.
+
+```javascript
+prism.beep(880, 0.08, 0.15, "square");
+prism.beep(220, 0.3, 0.2, "sawtooth");
 ```
 
 ### Gravity and Physics
@@ -1128,7 +1336,7 @@ prism.lerp(a, b, 0.5)       // linear interpolation
 <style>body{margin:0;overflow:hidden;background:#000;}</style>
 </head>
 <body>
-<script src="prism2d.min.js"></script>
+<script src="prism2d.js"></script>
 <script>
 
 prism(640, 360).mode("pixel").quality("master").bg("#1a1a2e").gravity(0, 1400);
@@ -1155,10 +1363,21 @@ for (var i = 0; i < 10; i++) {
   );
 }
 
+var coinFx = prism.emitter({
+  rate: 0, max: 200,
+  minLife: 0.3, maxLife: 0.6,
+  minSpeed: 40, maxSpeed: 120,
+  minSize: 2, maxSize: 4, endSize: 0,
+  colors: ["#ffd32a", "#fff"],
+  shape: "circle", fadeOut: true, gravity: 300
+});
+
 player.onEnter("coin", function (c) {
+  coinFx.at(c.centerX(), c.centerY()).explode(15);
   c.kill();
   score++;
   cam.shake(2, 0.1);
+  prism.beep(880, 0.06, 0.15, "square");
 });
 
 var cam = prism.camera()
@@ -1187,6 +1406,7 @@ prism.scene("play")
       p3.draw();
       for (var i = 0; i < coins.length; i++) coins[i].draw();
       player.draw();
+      prism.drawParticles();
     });
     prism.drawText("Coins: " + score, 8, 8, {
       color: "#fff", size: 12, outline: true, outlineColor: "#000"
@@ -1212,7 +1432,7 @@ prism.play("play").loop();
 <style>body{margin:0;overflow:hidden;background:#000;}</style>
 </head>
 <body>
-<script src="prism2d.min.js"></script>
+<script src="prism2d.js"></script>
 <script>
 
 prism(640, 480).mode("pixel").quality("master").bg("#2d3436");
@@ -1248,6 +1468,15 @@ for (var i = 0; i < 5; i++) {
 var bullets = [];
 var score = 0;
 
+var hitFx = prism.emitter({
+  rate: 0, max: 200,
+  minLife: 0.3, maxLife: 0.6,
+  minSpeed: 60, maxSpeed: 180,
+  minSize: 2, maxSize: 4, endSize: 0,
+  colors: ["#ff4757", "#fff", "#ffa502"],
+  shape: "circle", fadeOut: true, friction: 2
+});
+
 prism.scene("game")
   .on("update", function (dt) {
     player.moveAxis(prism.axisX(), prism.axisY(), 160);
@@ -1260,6 +1489,7 @@ prism.scene("game")
         .color("#ffeaa7").kinematic().tagged("bullet").moveDir(a, 400);
       b.life = 2;
       bullets.push(b);
+      prism.beep(900, 0.05, 0.1, "square");
     }
 
     for (var i = bullets.length - 1; i >= 0; i--) {
@@ -1271,6 +1501,7 @@ prism.scene("game")
       }
       for (var j = enemies.length - 1; j >= 0; j--) {
         if (bullets[i] && bullets[i].hits(enemies[j])) {
+          hitFx.at(enemies[j].centerX(), enemies[j].centerY()).explode(20);
           enemies[j].kill();
           enemies.splice(j, 1);
           bullets[i].kill();
@@ -1297,6 +1528,7 @@ prism.scene("game")
     for (var e = 0; e < enemies.length; e++) enemies[e].draw();
     for (var b = 0; b < bullets.length; b++) bullets[b].draw();
     player.draw();
+    prism.drawParticles();
     prism.drawText("Score: " + score, 20, 20, { color: "#fff", size: 14 });
   });
 
@@ -1394,6 +1626,34 @@ prism.play("game").loop();
 | `prism.rotate(r)` | Rotate |
 | `prism.scale(x, y)` | Scale |
 
+### Particles
+
+| Method | Description |
+|---|---|
+| `prism.emitter(config)` | Create a particle emitter |
+| `prism.drawParticles()` | Draw all active emitters |
+| `prism.clearParticles()` | Remove all emitters |
+| `em.at(x, y)` | Set emitter position |
+| `em.emit(count)` | Emit N particles now |
+| `em.explode(count)` | Fire a burst |
+| `em.start()` | Resume emission |
+| `em.stop()` | Stop emission |
+| `em.clear()` | Remove live particles |
+| `em.draw()` | Draw this emitter only |
+| `em.count()` | Live particle count |
+| `em.dead()` | True if stopped and empty |
+
+### Audio
+
+| Method | Description |
+|---|---|
+| `prism.loadSound(name, src, cb)` | Load a single sound |
+| `prism.loadSounds(map, done)` | Load multiple sounds |
+| `prism.playSound(name, opts)` | Play a sound (`volume`, `loop`, `rate`) |
+| `prism.stopSound(name)` | Stop a looped sound |
+| `prism.soundVolume(name, vol)` | Change looped sound volume |
+| `prism.beep(freq, dur, vol, type)` | Synthesized beep |
+
 ### Game Objects
 
 | Method | Description |
@@ -1406,7 +1666,6 @@ prism.play("game").loop();
 | `obj.at(x, y)` | Set position |
 | `obj.size(w, h)` | Set dimensions |
 | `obj.vel(vx, vy)` | Set velocity |
-| `obj.velX(vx)` | Set X velocity |
 | `obj.velX(vx)` | Set X velocity |
 | `obj.velY(vy)` | Set Y velocity |
 | `obj.addForce(fx, fy)` | Add to velocity |
@@ -1612,7 +1871,7 @@ MIT License. Use Prism2D for anything you want, commercial or personal, with no 
 <br>
 
 <p align="center">
-  Prism2D version 1.0.0rc.1
+  Prism2D version 1.0.0
   <br>
   Development started December 06, 2024
   <br>
@@ -1620,3 +1879,4 @@ MIT License. Use Prism2D for anything you want, commercial or personal, with no 
   <br>
   Built with brutal minimalism.
 </p>
+```   
