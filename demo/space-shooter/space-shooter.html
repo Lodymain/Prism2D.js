@@ -212,22 +212,26 @@ prism.scene("game")
     var ax = prism.axisX();
     var ay = prism.axisY();
 
-    if (prism._touchActive && prism._touches.length > 0) {
-      var t = prism._touches[0];
-      var tx = t.x - player.w / 2;
-      var ty = t.y - player.h / 2;
-      var dx = tx - player.x;
-      var dy = ty - player.y;
-      var d = Math.sqrt(dx * dx + dy * dy);
-      if (d > 5) {
-        player.vx = (dx / d) * 300;
-        player.vy = (dy / d) * 300;
-      } else {
-        player.stop();
-      }
+if (prism.touchCount() > 0) {
+  var t = prism.touchPos(0);
+
+  if (t) {
+    var tx = t.x - player.w / 2;
+    var ty = t.y - player.h / 2;
+    var dx = tx - player.x;
+    var dy = ty - player.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+
+    if (d > 5) {
+      player.vx = (dx / d) * 300;
+      player.vy = (dy / d) * 300;
     } else {
-      player.moveAxis(ax, ay, 260);
+      player.stop();
     }
+  }
+} else {
+  player.moveAxis(ax, ay, 260);
+}
 
     if (player.x < 0) player.x = 0;
     if (player.x + player.w > W) player.x = W - player.w;
