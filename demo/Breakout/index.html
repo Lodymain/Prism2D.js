@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Breakout - Prism2D</title>
+<style>*{margin:0;padding:0}body{background:#000;overflow:hidden;width:100vw;height:100vh}</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.js"></script>
+<script>
+
+prism(480, 360).mode("smooth").quality("master").bg("#0a0a1a");
+
+var W = 480, H = 360;
+var ROWS = 6, COLS = 12;
+var BW = 34, BH = 12, GAP = 2;
+var PADDLE_W = 70, PADDLE_H = 10;
+var BALL_SIZE = 8;
+var INITIAL_BALL_SPEED = 250;
+var BALL_SPEED = INITIAL_BALL_SPEED;
+
+var paddle, ball;
+var bricks = [];
+var score = 0;
+var lives = 3;
+var level = 1;
+var gameStarted = false;
+var gameOver = false;
+var won = false;
+var combo = 0;
+
+var brickColors = ["#ff6b6b", "#ffa94d", "#ffd43b", "#69db7c", "#74c0fc", "#b197fc"];
+
+function buildLevel() {
+  for (var i = bricks.length - 1; i >= 0; i--) bricks[i].kill();
+  bricks = [];
+
+  var startX = (W - (COLS * (BW + GAP) - GAP)) / 2;
+  var startY = 40;
+
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (level > 1 && Math.random() < 0.15) continue;
+
+      var color = brickColors[r];
+      var hp = (r < 2 && level > 1) ? 2 : 1;
+
+      var b = prism.rect(
+        startX + c * (BW + GAP),
+        startY + r * (BH + GAP),
+        BW, BH
+      ).color(color).tagged("brick");
+
+      b.hp = hp;
+      b.row = r;
+      b.brickColor = color;
+      bricks.push(b);
+    }
+  }
+}
+
+function resetBall() {
+  ball.at(paddle.centerX() - BALL_SIZE / 2, paddle.y - BALL_SIZE - 2).stop();
+  gameStarted = false;
+  combo = 0;
+}
+
+function launchBall() {
+  var angle = prism.randf(-0.6, 0.6);
+  ball.vx = Math.sin(angle) * BALL_SPEED;
+  ball.vy = -BALL_SPEED;
+  gameStarted = true;
+}
+
+function init() {
+  if (paddle) paddle.kill();
+  if (ball) ball.kill();
+
+  paddle = prism.rect(W / 2 - PADDLE_W / 2, H - 40, PADDLE_W, PADDLE_H)
+    .color("#fff")
+    .kinematic();
+
+  ball = prism.rect(0, 0, BALL_SIZE, BALL_SIZE)
+    .color("#ffd43b")
+    .kinematic();
+
+  score = 0;
+  lives = 3;
+  level = 1;
+  BALL_SPEED = INITIAL_BALL_SPEED;
+  gameOver = false;
+  won = false;
+
+  buildLevel();
+  resetBall();
+}
+
+init();
+
+prism.scene("menu")
+  .on("update", function () {
+    if (prism.keyHit(" ") || prism.keyHit("Space") || prism.mouse.hit()) {
+      init();
+      prism.play("game");
+    }
+  })
+  .on("draw", function () {
+    prism.drawText("BREAKOUT", W / 2, H / 3, {
+      color: "#fff", size: 40, align: "center", baseline: "middle", bold: true,
+      outline: true, outlineColor: "#74c0fc", outlineWidth: 3
+    });
+
+    prism.drawText("Tap or SPACE to Play", W / 2, H / 2 + 20, {
+      color: "#aaa", size: 16, align: "center", baseline: "middle"
+    });
+
+    prism.drawText("Arrow Keys or Mouse to Move", W / 2, H / 2 + 50, {
+      color: "#666", size: 13, align: "center", baseline: "middle"
+    });
+  });
+
+prism.scene("game")
+  .on("update", function (dt) {
+    if (gameOver || won) {
+      if (prism.keyHit(" ") || prism.keyHit("Space") || prism.mouse.hit()) {
+        prism.play("menu");
+      }
+      return;
+    }
+
+    var ax = prism.axisX();
+
+    if (ax !== 0) {
+      paddle.velX(ax * 350);
+    } else if (prism.mouse.down() || prism.isTouch()) {
+      var target = prism.mouse.x() - paddle.w / 2;
+      var diff = target - paddle.x;
+
+      if (Math.abs(diff) > 3) {
+        paddle.velX(diff * 8);
+      } else {
+        paddle.velX(0);
+      }
+    } else {
+      paddle.velX(0);
+    }
+
+    if (paddle.x < 0) {
+      paddle.x = 0;
+      paddle.velX(0);
+    }
+
+    if (paddle.x + paddle.w > W) {
+      paddle.x = W - paddle.w;
+      paddle.velX(0);
+    }
+
+    if (!gameStarted) {
+      ball.at(paddle.centerX() - BALL_SIZE / 2, paddle.y - BALL_SIZE - 2);
+
+      if (prism.keyHit(" ") || prism.keyHit("Space") || prism.mouse.hit()) {
+        launchBall();
+        prism.beep(440, 0.08, 0.12, "square");
+      }
+
+      return;
+    }
+
+    if (ball.x <= 0) {
+      ball.x = 0;
+      ball.vx = Math.abs(ball.vx);
+      prism.beep(300, 0.04, 0.08, "sine");
+    }
+
+    if (ball.x + BALL_SIZE >= W) {
+      ball.x = W - BALL_SIZE;
+      ball.vx = -Math.abs(ball.vx);
+      prism.beep(300, 0.04, 0.08, "sine");
+    }
+
+    if (ball.y <= 0) {
+      ball.y = 0;
+      ball.vy = Math.abs(ball.vy);
+      prism.beep(300, 0.04, 0.08, "sine");
+    }
+
+    if (ball.y + BALL_SIZE > H + 20) {
+      lives--;
+      combo = 0;
+      prism.beep(150, 0.3, 0.15, "sawtooth");
+
+      if (lives <= 0) {
+        gameOver = true;
+      } else {
+        resetBall();
+      }
+
+      return;
+    }
+
+    if (prism.collide(ball, paddle)) {
+      ball.y = paddle.y - BALL_SIZE;
+
+      var hitPos = (ball.centerX() - paddle.x) / paddle.w;
+      var angle = (hitPos - 0.5) * Math.PI * 0.7;
+      var speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+
+      ball.vx = Math.sin(angle) * speed;
+      ball.vy = -Math.abs(Math.cos(angle) * speed);
+
+      combo = 0;
+      prism.beep(500, 0.06, 0.12, "square");
+    }
+
+    for (var i = bricks.length - 1; i >= 0; i--) {
+      var b = bricks[i];
+
+      if (!b.visible) continue;
+
+      if (prism.collide(ball, b)) {
+        var overlap = prism.overlap(ball, b);
+
+        if (overlap) {
+          if (overlap.x < overlap.y) {
+            ball.vx = -ball.vx;
+          } else {
+            ball.vy = -ball.vy;
+          }
+        }
+
+        b.hp--;
+        combo++;
+
+        if (b.hp <= 0) {
+          b.kill();
+          bricks.splice(i, 1);
+
+          score += 10 * combo;
+          prism.beep(600 + combo * 50, 0.06, 0.12, "square");
+        } else {
+          b.color("#868e96");
+          prism.beep(400, 0.04, 0.08, "sine");
+        }
+
+        break;
+      }
+    }
+
+    var activeBricks = 0;
+
+    for (var j = 0; j < bricks.length; j++) {
+      if (bricks[j].visible) activeBricks++;
+    }
+
+    if (activeBricks === 0) {
+      level++;
+
+      if (level > 5) {
+        won = true;
+      } else {
+        BALL_SPEED = Math.min(BALL_SPEED + 20, 400);
+        buildLevel();
+        resetBall();
+      }
+    }
+  })
+  .on("draw", function () {
+    for (var i = 0; i < bricks.length; i++) {
+      var b = bricks[i];
+
+      if (b.visible) {
+        prism.drawRound(b.x, b.y, b.w, b.h, 3, b.brickColor);
+      }
+    }
+
+    prism.drawRound(paddle.x, paddle.y, paddle.w, paddle.h, 4, "#fff");
+
+    if (ball.visible) {
+      prism.drawCircle(ball.centerX(), ball.centerY(), BALL_SIZE / 2, "#ffd43b");
+    }
+
+    prism.drawText("SCORE " + score, 10, 6, {
+      color: "#fff", size: 13, bold: true,
+      outline: true, outlineColor: "#000", outlineWidth: 2
+    });
+
+    prism.drawText("LIVES " + lives, W - 10, 6, {
+      color: "#ff6b6b", size: 13, align: "right", bold: true,
+      outline: true, outlineColor: "#000", outlineWidth: 2
+    });
+
+    prism.drawText("LEVEL " + level, W / 2, 6, {
+      color: "#74c0fc", size: 13, align: "center", bold: true,
+      outline: true, outlineColor: "#000", outlineWidth: 2
+    });
+
+    if (combo > 2) {
+      prism.drawText("COMBO x" + combo, W / 2, H / 2, {
+        color: "#ffd43b", size: 20 + combo, align: "center", baseline: "middle",
+        bold: true, outline: true, outlineColor: "#000", outlineWidth: 3
+      });
+    }
+
+    if (gameOver) {
+      prism.alpha(0.7);
+      prism.drawRect(0, 0, W, H, "#000");
+      prism.alpha(1);
+
+      prism.drawText("GAME OVER", W / 2, H / 2 - 20, {
+        color: "#ff6b6b", size: 32, align: "center", baseline: "middle", bold: true
+      });
+
+      prism.drawText("Score: " + score, W / 2, H / 2 + 20, {
+        color: "#fff", size: 18, align: "center", baseline: "middle"
+      });
+
+      prism.drawText("Tap or SPACE", W / 2, H / 2 + 55, {
+        color: "#888", size: 13, align: "center", baseline: "middle"
+      });
+    }
+
+    if (won) {
+      prism.alpha(0.7);
+      prism.drawRect(0, 0, W, H, "#000");
+      prism.alpha(1);
+
+      prism.drawText("YOU WIN!", W / 2, H / 2 - 20, {
+        color: "#69db7c", size: 36, align: "center", baseline: "middle", bold: true
+      });
+
+      prism.drawText("Score: " + score, W / 2, H / 2 + 20, {
+        color: "#fff", size: 18, align: "center", baseline: "middle"
+      });
+    }
+  });
+
+prism.play("menu").loop();
+
+</script>
+</body>
+</html>
