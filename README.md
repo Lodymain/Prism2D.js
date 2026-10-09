@@ -37,12 +37,10 @@
 
 **Contributors**
 
-
-| [@Lodymain] | [engine, renderer, camera, collision, particles] |
-
-| [@ByteLands] | [documentation, input, Test the project, Tilemaps] |
-
-| [@kavdemo] | [scenes, renderer sprites, audio] |
+|---|---|
+| [@Lodymain] |
+| [@ByteLands] |
+| [@kavdemo] |
 
 Want to contribute? Read the [Contributing](#contributing) section at the bottom of this document.
 
