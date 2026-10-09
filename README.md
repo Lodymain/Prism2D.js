@@ -36,12 +36,14 @@
 | **Creator and Lead** | `Lodymain` |
 
 **Contributors**
+<br>
 
 |---|---|
-| [@Lodymain] |
-| [@ByteLands] |
-| [@kavdemo] |
+| **@Lodymain** |
+| **@ByteLands** |
+| **@kavdemo** |
 
+<br>
 Want to contribute? Read the [Contributing](#contributing) section at the bottom of this document.
 
 <br>
