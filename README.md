@@ -56,8 +56,6 @@ Prism2D was fully developed in our own web-based IDE, built from scratch by the 
 
 ## About the Release
 
-The project was actually finished a long time ago, and version 1.0.0 was originally planned to be published well before the 1.0.0rc.1 release candidate. Due to internal reviews and extra bug hunting rounds, the release order ended up shifting, and this final 1.0.0 is now the official public version.
-
 The next planned release is **1.5.2**, which will bring new functions and new systems to the engine. Only that is confirmed for now.
 
 <br>
