@@ -59,15 +59,21 @@
     for (var i = 0; i < prism._bodies.length; i++) {
       var b = prism._bodies[i];
       if (b.frozen) {
-        b._prevX = b.x; b._prevY = b.y;
+        b._prevX = b.x;
+        b._prevY = b.y;
         continue;
       }
-      b._prevX = b.x; b._prevY = b.y;
+      b._prevX = b.x;
+      b._prevY = b.y;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.wasGrounded = b.grounded;
-      if (b.grounded) b.coyote = 0.1;
-      else if (b.coyote > 0) b.coyote -= dt;
+      if (b.grounded) {
+        b.coyote = 0.1;
+      } else if (b.coyote > 0) {
+        b.coyote -= dt;
+        if (b.coyote < 0) b.coyote = 0;
+      }
       b.grounded = false;
       if (b.jumpBuffer > 0) b.jumpBuffer -= dt;
     }
@@ -132,20 +138,46 @@
       moving.y = solid.y - A.h;
       moving.vy = 0;
       moving.grounded = true;
+      moving.coyote = 0.1;
       return "bottom";
+    }
+
+    var prevLeft = moving._prevX !== undefined ? moving._prevX : moving.x;
+    var prevRight = prevLeft + A.w;
+    var prevTop = moving._prevY !== undefined ? moving._prevY : moving.y;
+    var prevBottom = prevTop + A.h;
+
+    var wasOverlappingX = prevRight > B.x && prevLeft < B.x + B.w;
+    var wasOverlappingY = prevBottom > B.y && prevTop < B.y + B.h;
+
+    var resolveX = false;
+    if (wasOverlappingY && !wasOverlappingX) {
+      resolveX = true;
+    } else if (wasOverlappingX && !wasOverlappingY) {
+      resolveX = false;
+    } else {
+      resolveX = (oX < oY);
     }
 
     var bounce = (opts.bounce !== undefined) ? opts.bounce : (moving.bounce || 0);
     var side;
 
-    if (oX < oY) {
+    if (resolveX) {
       if (dx > 0) { moving.x += oX; side = "left"; }
       else { moving.x -= oX; side = "right"; }
       moving.vx = -moving.vx * bounce;
     } else {
-      if (dy > 0) { moving.y += oY; side = "top"; }
-      else { moving.y -= oY; side = "bottom"; moving.grounded = true; }
-      moving.vy = -moving.vy * bounce;
+      if (dy > 0) {
+        moving.y += oY;
+        side = "top";
+        if (moving.vy < 0) moving.vy = -moving.vy * bounce;
+      } else {
+        moving.y -= oY;
+        side = "bottom";
+        moving.grounded = true;
+        moving.coyote = 0.1;
+        if (moving.vy > 0) moving.vy = -moving.vy * bounce;
+      }
     }
     return side;
   };
@@ -157,12 +189,16 @@
     var o = (a.radius + b.radius) - d;
     if (o <= 0) return null;
     var nx = dx / d, ny = dy / d;
-    a.x += nx * o; a.y += ny * o;
+    a.x += nx * o;
+    a.y += ny * o;
     var bounce = a.bounce || 0;
     var dot = a.vx * nx + a.vy * ny;
     a.vx -= (1 + bounce) * dot * nx;
     a.vy -= (1 + bounce) * dot * ny;
-    if (ny < -0.5) a.grounded = true;
+    if (ny < -0.5) {
+      a.grounded = true;
+      a.coyote = 0.1;
+    }
     return { nx: nx, ny: ny };
   };
 
@@ -191,12 +227,16 @@
     var d = Math.sqrt(d2) || 0.0001;
     var o = c.radius - d;
     var nX = dx / d, nY = dy / d;
-    c.x += nX * o; c.y += nY * o;
+    c.x += nX * o;
+    c.y += nY * o;
     var bounce = c.bounce || 0;
     var dot = c.vx * nX + c.vy * nY;
     c.vx -= (1 + bounce) * dot * nX;
     c.vy -= (1 + bounce) * dot * nY;
-    if (nY < -0.5) c.grounded = true;
+    if (nY < -0.5) {
+      c.grounded = true;
+      c.coyote = 0.1;
+    }
     return { nx: nX, ny: nY };
   };
 
@@ -207,14 +247,15 @@
     else { xInvEntry = (B.x + B.w) - A.x; xInvExit = B.x - (A.x + A.w); }
     if (vy > 0) { yInvEntry = B.y - (A.y + A.h); yInvExit = (B.y + B.h) - A.y; }
     else { yInvEntry = (B.y + B.h) - A.y; yInvExit = B.y - (A.y + A.h); }
-
     var xEntry, yEntry, xExit, yExit;
+
     var xOverlap = A.x < B.x + B.w && A.x + A.w > B.x;
     if (vx === 0) {
       xEntry = xOverlap ? -Infinity : Infinity;
       xExit = xOverlap ? Infinity : -Infinity;
     } else {
-      xEntry = xInvEntry / vx; xExit = xInvExit / vx;
+      xEntry = xInvEntry / vx;
+      xExit = xInvExit / vx;
     }
 
     var yOverlap = A.y < B.y + B.h && A.y + A.h > B.y;
@@ -222,7 +263,8 @@
       yEntry = yOverlap ? -Infinity : Infinity;
       yExit = yOverlap ? Infinity : -Infinity;
     } else {
-      yEntry = yInvEntry / vy; yExit = yInvExit / vy;
+      yEntry = yInvEntry / vy;
+      yExit = yInvExit / vy;
     }
 
     var entryTime = Math.max(xEntry, yEntry);
@@ -258,7 +300,10 @@
         moving.vy = dot * nearest.nx;
         rx = moving.vx * dt * (1 - nearest.time);
         ry = moving.vy * dt * (1 - nearest.time);
-        if (nearest.ny < 0) moving.grounded = true;
+        if (nearest.ny < 0) {
+          moving.grounded = true;
+          moving.coyote = 0.1;
+        }
       }
       remaining -= nearest.time;
       iterations++;
@@ -307,8 +352,10 @@
   };
 
   prism.moveTo = function (obj, x, y) {
-    obj.x = x; obj.y = y;
-    obj._prevX = x; obj._prevY = y;
+    obj.x = x;
+    obj.y = y;
+    obj._prevX = x;
+    obj._prevY = y;
     return obj;
   };
 
