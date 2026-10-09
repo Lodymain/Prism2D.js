@@ -13,7 +13,7 @@
   prism._resumeAudio = function () {
     var ctx = prism._getAudioCtx();
     if (ctx && ctx.state === "suspended") {
-      ctx.resume();
+      ctx.resume().catch(function() {});
     }
   };
 
@@ -25,7 +25,6 @@
       if (cb) cb(audio);
     };
     audio.onerror = function () {
-      console.warn("Prism2D: sound failed " + src);
       if (cb) cb(null);
     };
     audio.src = src;
@@ -38,7 +37,7 @@
     if (remaining === 0) { if (done) done(); return prism; }
     for (var i = 0; i < keys.length; i++) {
       (function (name) {
-        prism.loadSound(name, list[name], function () {
+        prism.load(name, list[name], function () {
           remaining--;
           if (remaining === 0 && done) done();
         });
@@ -52,24 +51,30 @@
     var entry = prism._sounds[name];
     if (!entry) return prism;
     prism._resumeAudio();
-    var audio = entry.element.cloneNode(true);
-    audio.volume = (opts.volume !== undefined) ? prism.clamp(opts.volume, 0, 1) : 1;
-    audio.loop = !!opts.loop;
-    if (opts.rate) audio.playbackRate = opts.rate;
-    audio.play().catch(function () {});
-    if (opts.loop) {
-      prism._sounds[name]._loopInstance = audio;
+    try {
+      var audio = entry.element.cloneNode(true);
+      audio.volume = (opts.volume !== undefined) ? prism.clamp(opts.volume, 0, 1) : 1;
+      audio.loop = !!opts.loop;
+      if (opts.rate) audio.playbackRate = opts.rate;
+      audio.play().catch(function () {});
+      if (opts.loop) {
+        prism._sounds[name]._loopInstance = audio;
+      }
+      return audio;
+    } catch (e) {
+      return null;
     }
-    return audio;
   };
 
   prism.stopSound = function (name) {
     var entry = prism._sounds[name];
     if (!entry) return prism;
     if (entry._loopInstance) {
-      entry._loopInstance.pause();
-      entry._loopInstance.currentTime = 0;
-      entry._loopInstance = null;
+      try {
+        entry._loopInstance.pause();
+        entry._loopInstance.currentTime = 0;
+        entry._loopInstance = null;
+      } catch (e) {}
     }
     return prism;
   };
@@ -83,24 +88,26 @@
   };
 
   prism.beep = function (freq, duration, vol, type) {
-    var ctx = prism._getAudioCtx();
-    if (!ctx) return prism;
-    prism._resumeAudio();
-    freq = freq || 440;
-    duration = duration || 0.15;
-    vol = (vol !== undefined) ? vol : 0.3;
-    type = type || "square";
+    try {
+      var ctx = prism._getAudioCtx();
+      if (!ctx) return prism;
+      prism._resumeAudio();
+      freq = freq || 440;
+      duration = duration || 0.15;
+      vol = (vol !== undefined) ? vol : 0.3;
+      type = type || "square";
 
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.value = vol;
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + duration);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) {}
     return prism;
   };
 
