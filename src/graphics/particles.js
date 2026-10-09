@@ -3,32 +3,33 @@
   var prism = global.prism;
 
   function Emitter(config) {
+    config = config || {};
     var e = {
-      x: config.x || 0,
-      y: config.y || 0,
-      active: true,
-      rate: config.rate || 10,
-      burst: config.burst || 0,
-      maxParticles: config.max || 200,
+      x: config.x !== undefined ? config.x : 0,
+      y: config.y !== undefined ? config.y : 0,
+      active: config.active !== undefined ? config.active : true,
+      rate: config.rate !== undefined ? config.rate : 10,
+      burst: config.burst !== undefined ? config.burst : 0,
+      maxParticles: config.max !== undefined ? config.max : 200,
       _particles: [],
       _timer: 0,
       _burstDone: false,
 
-      minLife: config.minLife || 0.5,
-      maxLife: config.maxLife || 2.0,
-      minSpeed: config.minSpeed || 20,
-      maxSpeed: config.maxSpeed || 100,
-      minAngle: config.minAngle || 0,
-      maxAngle: config.maxAngle || Math.PI * 2,
-      minSize: config.minSize || 2,
-      maxSize: config.maxSize || 6,
+      minLife: config.minLife !== undefined ? config.minLife : 0.5,
+      maxLife: config.maxLife !== undefined ? config.maxLife : 2.0,
+      minSpeed: config.minSpeed !== undefined ? config.minSpeed : 20,
+      maxSpeed: config.maxSpeed !== undefined ? config.maxSpeed : 100,
+      minAngle: config.minAngle !== undefined ? config.minAngle : 0,
+      maxAngle: config.maxAngle !== undefined ? config.maxAngle : Math.PI * 2,
+      minSize: config.minSize !== undefined ? config.minSize : 2,
+      maxSize: config.maxSize !== undefined ? config.maxSize : 6,
       endSize: config.endSize !== undefined ? config.endSize : 0,
       colors: config.colors || ["#fff"],
       shape: config.shape || "rect",
       gravity: config.gravity !== undefined ? config.gravity : 0,
       fadeOut: config.fadeOut !== undefined ? config.fadeOut : true,
-      spread: config.spread || 0,
-      friction: config.friction || 0,
+      spread: config.spread !== undefined ? config.spread : 0,
+      friction: config.friction !== undefined ? config.friction : 0,
 
       at: function (x, y) { e.x = x; e.y = y; return e; },
 
@@ -39,6 +40,7 @@
           var angle = prism.randf(e.minAngle, e.maxAngle);
           var speed = prism.randf(e.minSpeed, e.maxSpeed);
           var life = prism.randf(e.minLife, e.maxLife);
+          if (life <= 0) life = 0.001;
           var size = prism.randf(e.minSize, e.maxSize);
           var color = e.colors[prism.rand(0, e.colors.length - 1)];
           var ox = e.spread > 0 ? prism.randf(-e.spread, e.spread) : 0;
@@ -104,7 +106,7 @@
           if (p.size < 0) p.size = 0;
 
           if (e.fadeOut) {
-            p.alpha = p.life / p.maxLife;
+            p.alpha = Math.max(0, Math.min(1, p.life / p.maxLife));
           }
         }
         return e;
@@ -117,7 +119,7 @@
           var p = particles[i];
           if (p.size <= 0) continue;
           var prevAlpha = ctx.globalAlpha;
-          ctx.globalAlpha = p.alpha;
+          ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
           ctx.fillStyle = p.color;
 
           if (p.shape === "circle") {
