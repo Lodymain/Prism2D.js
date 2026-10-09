@@ -1,10 +1,15 @@
+/*
+prism2d.js
+1.0.1
+MIT
+*/
 (function (global) {
 
   var prism = function (w, h, parent) {
     return prism.init({ width: w, height: h, parent: parent });
-  };content://com.android.externalstorage.documents/tree/primary%3Aprism2D::primary:prism2D/game-test/prism2d.js
+  };
 
-  prism.version = "1.0.0";
+  prism.version = "1.0.1";
   prism.canvas = null;
   prism.ctx = null;
   prism.width = 0;
@@ -827,7 +832,8 @@
       _isBody: false,
       _pid: 0,
       _handlers: {},
-      _autoSize: false
+      _autoSize: false,
+      _vxSetThisFrame: false
     };
 
     var obj = {};
@@ -895,12 +901,20 @@
     obj.unfreeze = function () { obj.frozen = false; return obj; };
 
     obj.vel = function (vx, vy) {
-      if (vx !== undefined && vx !== null) obj.vx = vx;
+      if (vx !== undefined && vx !== null) {
+        obj.vx = vx;
+        obj._vxSetThisFrame = true;
+      }
       if (vy !== undefined && vy !== null) obj.vy = vy;
       return obj;
     };
 
-    obj.velX = function (vx) { obj.vx = vx; return obj; };
+    obj.velX = function (vx) {
+      obj.vx = vx;
+      obj._vxSetThisFrame = true;
+      return obj;
+    };
+
     obj.velY = function (vy) { obj.vy = vy; return obj; };
 
     obj.move = function (dx, dy) {
@@ -915,13 +929,16 @@
     obj.moveAxis = function (ix, iy, speed) {
       var len = Math.sqrt(ix * ix + iy * iy);
       if (len > 0) { ix /= len; iy /= len; }
-      obj.vx = ix * speed; obj.vy = iy * speed;
+      obj.vx = ix * speed;
+      obj.vy = iy * speed;
+      obj._vxSetThisFrame = true;
       return obj;
     };
 
     obj.moveDir = function (a, speed) {
       obj.vx = Math.cos(a) * speed;
       obj.vy = Math.sin(a) * speed;
+      obj._vxSetThisFrame = true;
       return obj;
     };
 
@@ -941,7 +958,9 @@
       var ty = target.y + (target.h || 0) * 0.5;
       var dx = tx - cx, dy = ty - cy;
       var d = Math.sqrt(dx * dx + dy * dy) || 1;
-      obj.vx = (dx / d) * speed; obj.vy = (dy / d) * speed;
+      obj.vx = (dx / d) * speed;
+      obj.vy = (dy / d) * speed;
+      obj._vxSetThisFrame = true;
       return obj;
     };
 
@@ -953,6 +972,7 @@
 
     obj.impulse = function (fx, fy) {
       obj.vx = fx;
+      obj._vxSetThisFrame = true;
       obj.vy = (fy === undefined ? obj.vy : fy);
       return obj;
     };
@@ -968,6 +988,7 @@
 
     obj.jumpTo = function (fx, fy) {
       obj.vx = fx; obj.vy = fy; obj.grounded = false;
+      obj._vxSetThisFrame = true;
       return obj;
     };
 
@@ -975,6 +996,7 @@
       var len = Math.sqrt(dx * dx + dy * dy);
       if (len > 0) { dx /= len; dy /= len; }
       obj.vx = dx * speed; obj.vy = dy * speed;
+      obj._vxSetThisFrame = true;
       return obj;
     };
 
@@ -1069,6 +1091,15 @@
 
     obj.kill = function () {
       obj.visible = false;
+      if (obj._pid) {
+        var pidStr = String(obj._pid);
+        for (var k in prism._contacts) {
+          var parts = k.split("|");
+          if (parts[0] === pidStr || parts[1] === pidStr) {
+            delete prism._contacts[k];
+          }
+        }
+      }
       prism.removeBody(obj);
       return obj;
     };
@@ -1184,7 +1215,6 @@
   prism.renderX = renderX;
   prism.renderY = renderY;
 
-
 })(typeof window !== "undefined" ? window : this);
 (function (global) {
 
@@ -1289,32 +1319,33 @@
   var prism = global.prism;
 
   function Emitter(config) {
+    config = config || {};
     var e = {
-      x: config.x || 0,
-      y: config.y || 0,
-      active: true,
-      rate: config.rate || 10,
-      burst: config.burst || 0,
-      maxParticles: config.max || 200,
+      x: config.x !== undefined ? config.x : 0,
+      y: config.y !== undefined ? config.y : 0,
+      active: config.active !== undefined ? config.active : true,
+      rate: config.rate !== undefined ? config.rate : 10,
+      burst: config.burst !== undefined ? config.burst : 0,
+      maxParticles: config.max !== undefined ? config.max : 200,
       _particles: [],
       _timer: 0,
       _burstDone: false,
 
-      minLife: config.minLife || 0.5,
-      maxLife: config.maxLife || 2.0,
-      minSpeed: config.minSpeed || 20,
-      maxSpeed: config.maxSpeed || 100,
-      minAngle: config.minAngle || 0,
-      maxAngle: config.maxAngle || Math.PI * 2,
-      minSize: config.minSize || 2,
-      maxSize: config.maxSize || 6,
+      minLife: config.minLife !== undefined ? config.minLife : 0.5,
+      maxLife: config.maxLife !== undefined ? config.maxLife : 2.0,
+      minSpeed: config.minSpeed !== undefined ? config.minSpeed : 20,
+      maxSpeed: config.maxSpeed !== undefined ? config.maxSpeed : 100,
+      minAngle: config.minAngle !== undefined ? config.minAngle : 0,
+      maxAngle: config.maxAngle !== undefined ? config.maxAngle : Math.PI * 2,
+      minSize: config.minSize !== undefined ? config.minSize : 2,
+      maxSize: config.maxSize !== undefined ? config.maxSize : 6,
       endSize: config.endSize !== undefined ? config.endSize : 0,
       colors: config.colors || ["#fff"],
       shape: config.shape || "rect",
       gravity: config.gravity !== undefined ? config.gravity : 0,
       fadeOut: config.fadeOut !== undefined ? config.fadeOut : true,
-      spread: config.spread || 0,
-      friction: config.friction || 0,
+      spread: config.spread !== undefined ? config.spread : 0,
+      friction: config.friction !== undefined ? config.friction : 0,
 
       at: function (x, y) { e.x = x; e.y = y; return e; },
 
@@ -1325,6 +1356,7 @@
           var angle = prism.randf(e.minAngle, e.maxAngle);
           var speed = prism.randf(e.minSpeed, e.maxSpeed);
           var life = prism.randf(e.minLife, e.maxLife);
+          if (life <= 0) life = 0.001;
           var size = prism.randf(e.minSize, e.maxSize);
           var color = e.colors[prism.rand(0, e.colors.length - 1)];
           var ox = e.spread > 0 ? prism.randf(-e.spread, e.spread) : 0;
@@ -1390,7 +1422,7 @@
           if (p.size < 0) p.size = 0;
 
           if (e.fadeOut) {
-            p.alpha = p.life / p.maxLife;
+            p.alpha = Math.max(0, Math.min(1, p.life / p.maxLife));
           }
         }
         return e;
@@ -1403,7 +1435,7 @@
           var p = particles[i];
           if (p.size <= 0) continue;
           var prevAlpha = ctx.globalAlpha;
-          ctx.globalAlpha = p.alpha;
+          ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha));
           ctx.fillStyle = p.color;
 
           if (p.shape === "circle") {
@@ -1502,7 +1534,10 @@
         b.vx += prism._gravity.x * gm * dt;
         b.vy += prism._gravity.y * gm * dt;
       }
-      if (b.friction) b.vx *= (1 - prism.clamp(b.friction * dt * 60, 0, 1));
+      if (b.friction && !b._vxSetThisFrame) {
+        b.vx *= (1 - prism.clamp(b.friction * dt * 60, 0, 1));
+      }
+      b._vxSetThisFrame = false;
       if (b.maxVX !== undefined) b.vx = prism.clamp(b.vx, -b.maxVX, b.maxVX);
       if (b.maxVY !== undefined) b.vy = prism.clamp(b.vy, -b.maxVY, b.maxVY);
     }
@@ -1512,15 +1547,21 @@
     for (var i = 0; i < prism._bodies.length; i++) {
       var b = prism._bodies[i];
       if (b.frozen) {
-        b._prevX = b.x; b._prevY = b.y;
+        b._prevX = b.x;
+        b._prevY = b.y;
         continue;
       }
-      b._prevX = b.x; b._prevY = b.y;
+      b._prevX = b.x;
+      b._prevY = b.y;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.wasGrounded = b.grounded;
-      if (b.grounded) b.coyote = 0.1;
-      else if (b.coyote > 0) b.coyote -= dt;
+      if (b.grounded) {
+        b.coyote = 0.1;
+      } else if (b.coyote > 0) {
+        b.coyote -= dt;
+        if (b.coyote < 0) b.coyote = 0;
+      }
       b.grounded = false;
       if (b.jumpBuffer > 0) b.jumpBuffer -= dt;
     }
@@ -1534,6 +1575,7 @@
   prism._boundsOf = boundsOf;
 
   prism.collide = function (a, b) {
+    if (!a || !b || a.visible === false || b.visible === false) return false;
     if (a.type === "circle" && b.type === "circle") return prism.collideCC(a, b);
     if (a.type === "circle") return prism.collideCR(a, b);
     if (b.type === "circle") return prism.collideCR(b, a);
@@ -1567,7 +1609,9 @@
 
   prism.solve = function (moving, solid, opts) {
     opts = opts || {};
+    if (!moving || !solid) return null;
     if (moving.sensor || solid.sensor) return null;
+    if (moving.visible === false || solid.visible === false) return null;
 
     if (moving.type === "circle" && solid.type === "circle") return prism.solveCC(moving, solid);
     if (moving.type === "circle") return prism.solveCR(moving, solid);
@@ -1580,25 +1624,61 @@
     if (oX <= 0 || oY <= 0) return null;
 
     if (solid.oneWay) {
-      var prevBottom = (moving._prevY !== undefined ? moving._prevY : moving.y) + A.h;
-      if (prevBottom > solid.y + 8 || moving.vy < 0) return null;
+      var prevBottomOW = (moving._prevY !== undefined ? moving._prevY : moving.y) + A.h;
+      if (prevBottomOW > solid.y + 8 || moving.vy < 0) return null;
       moving.y = solid.y - A.h;
       moving.vy = 0;
       moving.grounded = true;
+      moving.coyote = 0.1;
       return "bottom";
+    }
+
+    var prevLeft = moving._prevX !== undefined ? moving._prevX : moving.x;
+    var prevRight = prevLeft + A.w;
+    var prevTop = moving._prevY !== undefined ? moving._prevY : moving.y;
+    var prevBottom = prevTop + A.h;
+
+    var wasOverlappingX = prevRight > B.x && prevLeft < B.x + B.w;
+    var wasOverlappingY = prevBottom > B.y && prevTop < B.y + B.h;
+
+    var resolveX;
+    if (wasOverlappingY && !wasOverlappingX) {
+      resolveX = true;
+    } else if (wasOverlappingX && !wasOverlappingY) {
+      resolveX = false;
+    } else {
+      resolveX = (oX < oY);
     }
 
     var bounce = (opts.bounce !== undefined) ? opts.bounce : (moving.bounce || 0);
     var side;
 
-    if (oX < oY) {
+    if (resolveX) {
       if (dx > 0) { moving.x += oX; side = "left"; }
       else { moving.x -= oX; side = "right"; }
-      moving.vx = -moving.vx * bounce;
+      if (bounce > 0) {
+        moving.vx = -moving.vx * bounce;
+      } else {
+        moving.vx = 0;
+      }
     } else {
-      if (dy > 0) { moving.y += oY; side = "top"; }
-      else { moving.y -= oY; side = "bottom"; moving.grounded = true; }
-      moving.vy = -moving.vy * bounce;
+      if (dy > 0) {
+        moving.y += oY;
+        side = "top";
+        if (moving.vy < 0) {
+          if (bounce > 0) moving.vy = -moving.vy * bounce;
+          else moving.vy = 0;
+        }
+      } else {
+        moving.y -= oY;
+        side = "bottom";
+        moving.grounded = true;
+        moving.coyote = 0.1;
+        if (moving.vy > 0) {
+          if (bounce > 0) moving.vy = -moving.vy * bounce;
+          else moving.vy = 0;
+        }
+      }
     }
     return side;
   };
@@ -1610,12 +1690,16 @@
     var o = (a.radius + b.radius) - d;
     if (o <= 0) return null;
     var nx = dx / d, ny = dy / d;
-    a.x += nx * o; a.y += ny * o;
+    a.x += nx * o;
+    a.y += ny * o;
     var bounce = a.bounce || 0;
     var dot = a.vx * nx + a.vy * ny;
     a.vx -= (1 + bounce) * dot * nx;
     a.vy -= (1 + bounce) * dot * ny;
-    if (ny < -0.5) a.grounded = true;
+    if (ny < -0.5) {
+      a.grounded = true;
+      a.coyote = 0.1;
+    }
     return { nx: nx, ny: ny };
   };
 
@@ -1644,12 +1728,16 @@
     var d = Math.sqrt(d2) || 0.0001;
     var o = c.radius - d;
     var nX = dx / d, nY = dy / d;
-    c.x += nX * o; c.y += nY * o;
+    c.x += nX * o;
+    c.y += nY * o;
     var bounce = c.bounce || 0;
     var dot = c.vx * nX + c.vy * nY;
     c.vx -= (1 + bounce) * dot * nX;
     c.vy -= (1 + bounce) * dot * nY;
-    if (nY < -0.5) c.grounded = true;
+    if (nY < -0.5) {
+      c.grounded = true;
+      c.coyote = 0.1;
+    }
     return { nx: nX, ny: nY };
   };
 
@@ -1660,14 +1748,15 @@
     else { xInvEntry = (B.x + B.w) - A.x; xInvExit = B.x - (A.x + A.w); }
     if (vy > 0) { yInvEntry = B.y - (A.y + A.h); yInvExit = (B.y + B.h) - A.y; }
     else { yInvEntry = (B.y + B.h) - A.y; yInvExit = B.y - (A.y + A.h); }
-
     var xEntry, yEntry, xExit, yExit;
+
     var xOverlap = A.x < B.x + B.w && A.x + A.w > B.x;
     if (vx === 0) {
       xEntry = xOverlap ? -Infinity : Infinity;
       xExit = xOverlap ? Infinity : -Infinity;
     } else {
-      xEntry = xInvEntry / vx; xExit = xInvExit / vx;
+      xEntry = xInvEntry / vx;
+      xExit = xInvExit / vx;
     }
 
     var yOverlap = A.y < B.y + B.h && A.y + A.h > B.y;
@@ -1675,7 +1764,8 @@
       yEntry = yOverlap ? -Infinity : Infinity;
       yExit = yOverlap ? Infinity : -Infinity;
     } else {
-      yEntry = yInvEntry / vy; yExit = yInvExit / vy;
+      yEntry = yInvEntry / vy;
+      yExit = yInvExit / vy;
     }
 
     var entryTime = Math.max(xEntry, yEntry);
@@ -1697,7 +1787,7 @@
     while (remaining > 0 && iterations < 4) {
       var nearest = { time: 1, nx: 0, ny: 0, target: null };
       for (var i = 0; i < solids.length; i++) {
-        if (solids[i] === moving) continue;
+        if (solids[i] === moving || solids[i].sensor || solids[i].visible === false) continue;
         var hit = prism.sweptAABB(moving, rx, ry, solids[i]);
         if (hit.time < nearest.time) {
           nearest = { time: hit.time, nx: hit.nx, ny: hit.ny, target: solids[i] };
@@ -1711,7 +1801,10 @@
         moving.vy = dot * nearest.nx;
         rx = moving.vx * dt * (1 - nearest.time);
         ry = moving.vy * dt * (1 - nearest.time);
-        if (nearest.ny < 0) moving.grounded = true;
+        if (nearest.ny < 0) {
+          moving.grounded = true;
+          moving.coyote = 0.1;
+        }
       }
       remaining -= nearest.time;
       iterations++;
@@ -1727,6 +1820,7 @@
     var invDy = 1 / (dy === 0 ? 0.000001 : dy);
     for (var i = 0; i < targets.length; i++) {
       var t = targets[i];
+      if (!t || t.visible === false) continue;
       var b = boundsOf(t);
       var tx1 = (b.x - x) * invDx;
       var tx2 = (b.x + b.w - x) * invDx;
@@ -1760,8 +1854,10 @@
   };
 
   prism.moveTo = function (obj, x, y) {
-    obj.x = x; obj.y = y;
-    obj._prevX = x; obj._prevY = y;
+    obj.x = x;
+    obj.y = y;
+    obj._prevX = x;
+    obj._prevY = y;
     return obj;
   };
 
@@ -1780,15 +1876,16 @@
 
   prism._checkGroup = function (obj, tag, handlers) {
     handlers = handlers || {};
-    var list = prism.group(tag);
+    var original = prism.group(tag);
+    var list = original.slice();
     if (!obj._pid) obj._pid = prism._nextPid();
     for (var i = 0; i < list.length; i++) {
       var other = list[i];
-      if (other === obj) continue;
+      if (!other || other === obj) continue;
       if (!other._pid) other._pid = prism._nextPid();
       var key = prism._pairKey(obj, other);
       var was = prism._contacts[key] === true;
-      var now = prism.collide(obj, other);
+      var now = (other.visible !== false) && prism.collide(obj, other);
       if (now && !was) {
         prism._contacts[key] = true;
         if (handlers.enter) handlers.enter(other);
@@ -1803,14 +1900,30 @@
   };
 
   prism._solveGroup = function (obj, tag, opts) {
-    var list = prism.group(tag);
-    var sides = [];
+    var original = prism.group(tag);
+    var list = original.slice();
+    
+    var candidates = [];
     for (var i = 0; i < list.length; i++) {
       var s = list[i];
-      if (s === obj || s.sensor) continue;
+      if (!s || s === obj || s.sensor || s.visible === false) continue;
       if (prism.collide(obj, s)) {
-        var side = prism.solve(obj, s, opts);
-        if (side) sides.push({ side: side, target: s });
+        candidates.push(s);
+      }
+    }
+
+    candidates.sort(function (a, b) {
+      var oa = prism.overlap(obj, a);
+      var ob = prism.overlap(obj, b);
+      return (ob ? ob.area : 0) - (oa ? oa.area : 0);
+    });
+
+    var sides = [];
+    for (var j = 0; j < candidates.length; j++) {
+      var target = candidates[j];
+      if (prism.collide(obj, target)) {
+        var side = prism.solve(obj, target, opts);
+        if (side) sides.push({ side: side, target: target });
       }
     }
     return sides.length ? sides : null;
@@ -2220,7 +2333,7 @@
   prism._resumeAudio = function () {
     var ctx = prism._getAudioCtx();
     if (ctx && ctx.state === "suspended") {
-      ctx.resume();
+      ctx.resume().catch(function() {});
     }
   };
 
@@ -2232,7 +2345,6 @@
       if (cb) cb(audio);
     };
     audio.onerror = function () {
-      console.warn("Prism2D: sound failed " + src);
       if (cb) cb(null);
     };
     audio.src = src;
@@ -2245,7 +2357,7 @@
     if (remaining === 0) { if (done) done(); return prism; }
     for (var i = 0; i < keys.length; i++) {
       (function (name) {
-        prism.loadSound(name, list[name], function () {
+        prism.load(name, list[name], function () {
           remaining--;
           if (remaining === 0 && done) done();
         });
@@ -2259,24 +2371,30 @@
     var entry = prism._sounds[name];
     if (!entry) return prism;
     prism._resumeAudio();
-    var audio = entry.element.cloneNode(true);
-    audio.volume = (opts.volume !== undefined) ? prism.clamp(opts.volume, 0, 1) : 1;
-    audio.loop = !!opts.loop;
-    if (opts.rate) audio.playbackRate = opts.rate;
-    audio.play().catch(function () {});
-    if (opts.loop) {
-      prism._sounds[name]._loopInstance = audio;
+    try {
+      var audio = entry.element.cloneNode(true);
+      audio.volume = (opts.volume !== undefined) ? prism.clamp(opts.volume, 0, 1) : 1;
+      audio.loop = !!opts.loop;
+      if (opts.rate) audio.playbackRate = opts.rate;
+      audio.play().catch(function () {});
+      if (opts.loop) {
+        prism._sounds[name]._loopInstance = audio;
+      }
+      return audio;
+    } catch (e) {
+      return null;
     }
-    return audio;
   };
 
   prism.stopSound = function (name) {
     var entry = prism._sounds[name];
     if (!entry) return prism;
     if (entry._loopInstance) {
-      entry._loopInstance.pause();
-      entry._loopInstance.currentTime = 0;
-      entry._loopInstance = null;
+      try {
+        entry._loopInstance.pause();
+        entry._loopInstance.currentTime = 0;
+        entry._loopInstance = null;
+      } catch (e) {}
     }
     return prism;
   };
@@ -2290,24 +2408,26 @@
   };
 
   prism.beep = function (freq, duration, vol, type) {
-    var ctx = prism._getAudioCtx();
-    if (!ctx) return prism;
-    prism._resumeAudio();
-    freq = freq || 440;
-    duration = duration || 0.15;
-    vol = (vol !== undefined) ? vol : 0.3;
-    type = type || "square";
+    try {
+      var ctx = prism._getAudioCtx();
+      if (!ctx) return prism;
+      prism._resumeAudio();
+      freq = freq || 440;
+      duration = duration || 0.15;
+      vol = (vol !== undefined) ? vol : 0.3;
+      type = type || "square";
 
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.value = vol;
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + duration);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) {}
     return prism;
   };
 
