@@ -21,7 +21,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.0.0 |
+| **Version** | 1.0.1 |
 | **License** | MIT |
 | **Started** | December 06, 2024 |
 | **Released** | September 13, 2026 |
@@ -106,7 +106,7 @@ At the same time, Prism2D never locks you out. The raw canvas context is always 
 
 <br>
 
-## What is Included in Version 1.0.0
+## What is Included in Version 1.0.1
 
 This stable release contains every system needed to build complete 2D games.
 
@@ -242,7 +242,7 @@ This stable release contains every system needed to build complete 2D games.
 
 <br>
 
-## Bugs Fixed in 1.0.0
+## Bugs Fixed in 1.0.1
 
 The following bugs from previous internal builds and the 1.0.0rc.1 candidate were fixed in this stable release.
 
@@ -261,7 +261,7 @@ The following bugs from previous internal builds and the 1.0.0rc.1 candidate wer
 
 ## Next Version
 
-The next release will be **1.5.2**. It will introduce new functions and new systems on top of everything already available in 1.0.0. Details will be announced when it drops.
+The next release will be **1.5.2**. It will introduce new functions and new systems on top of everything already available in 1.0.1. Details will be announced when it drops.
 
 <br>
 
