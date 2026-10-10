@@ -4,7 +4,7 @@
 # Prism2D.js
 
 <p align="center">
-  <strong>Brutally minimal 2D game engine for the browser.</strong>
+  <strong>2D game engine for the browser.</strong>
   <br>
   Zero boilerplate. Absolute control. One file. No dependencies.
 </p>
@@ -1870,6 +1870,4 @@ MIT License. Use Prism2D for anything you want, commercial or personal, with no 
   <br>
   First public release September 13, 2026
   <br>
-  Built with brutal minimalism.
-</p>
 ```   
