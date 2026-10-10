@@ -49,7 +49,7 @@ Each module has a specific responsibility. Before adding new code, check whether
 
 `src/index.js`
 
-This is the entry point of the engine. It creates the main "prism" function, initializes the shared state, and exposes the engine through "global.prism".
+This is the entry point of the engine. It creates the main "prism" function, initializes the shared state, and exposes the engine through **global.prism**.
 
 The shared state includes information about the canvas, rendering, timing, scenes, physics, input, audio, cameras, and other engine systems.
 
@@ -226,7 +226,7 @@ Keep the implementation in the most appropriate module and modify other modules 
 
 This is not a rule against cross-module changes. Some features naturally require them. The important thing is to understand the dependencies instead of spreading related code across the project without a clear structure.
 
-5. Module Pattern and Shared State
+## Module Pattern and Shared State
 
 Prism2D.js uses immediately invoked function expressions (IIFEs) to organize its source files.
 
@@ -238,12 +238,13 @@ A typical module follows this pattern:
   // Module implementation goes here.
 })(typeof window !== "undefined" ? window : this);
 ```
+
 The IIFE creates a local scope for the module. The "global" argument provides access to the global object, while "var prism = global.prism" gives the module access to the shared engine object.
 
 Modules extend the existing "prism" object by assigning functions and properties to it.
 
 For example, a module may define a method like this:
-
+```js
 (function (global) {
   var prism = global.prism;
 
@@ -252,10 +253,10 @@ For example, a module may define a method like this:
     return prism;
   };
 })(typeof window !== "undefined" ? window : this);
-
+```
 This is a simplified example of the existing pattern, not a replacement for the actual implementation.
 
-When creating a new module:
+**When creating a new module:**
 
 - Follow the established IIFE pattern.
 - Access the shared engine object consistently.
@@ -265,7 +266,7 @@ When creating a new module:
 
 Do not introduce a different module system, such as ES module imports and exports, without first considering how it would work with the engine's existing loading and distribution setup.
 
-6. Public APIs and Internal Helpers
+## Public APIs and Internal Helpers
 
 Not every property or function on "prism" is intended to be part of the public API.
 
@@ -285,14 +286,14 @@ When changing public APIs:
 
 Internal APIs can also have dependencies, so an underscore does not mean a function can be changed without checking its callers.
 
-7. Loading Order and Dependencies
+## Loading Order and Dependencies
 
 Prism2D.js relies on a specific order when its source files are loaded directly in the browser.
 
 The initial module creates the shared "prism" object, and subsequent modules access that object and extend it. Modules may also depend on functions provided by earlier modules.
 
 Use the following order when loading the source files directly:
-
+```js
 <script src="src/index.js"></script>
 <script src="src/core/engine.js"></script>
 <script src="src/core/loop.js"></script>
@@ -305,7 +306,7 @@ Use the following order when loading the source files directly:
 <script src="src/physics/tilemap.js"></script>
 <script src="src/camera/camera.js"></script>
 <script src="src/audio/audio.js"></script>
-
+```
 Preserve this order unless the project's dependency structure has been checked and the change has been tested.
 
 When adding a new module, identify the functions and state it needs before deciding where it should be loaded. Also check whether existing modules need to use functionality provided by the new module.
@@ -314,7 +315,7 @@ Changing the script order without checking these dependencies can cause function
 
 The "build/prism2d.js" file provides the engine as a single file. Keep changes in the source files unless you are specifically working on the build or distribution process. Do not assume that editing a source file automatically updates the bundled file.
 
-8. Adding a New Feature
+## Adding a New Feature
 
 Before implementing a feature, decide whether it belongs in an existing module or needs a new one.
 
@@ -335,7 +336,7 @@ For example, a new drawing primitive would normally belong in "graphics/renderer
 
 A feature that affects multiple systems may need changes in more than one file. Plan those changes before implementing them.
 
-A practical workflow
+**A practical workflow**
 
 1. Read the relevant module and understand the existing implementation.
 2. Search for related functions and references in other files.
@@ -347,7 +348,7 @@ A practical workflow
 
 If the feature introduces a new module, also consider its dependencies and where it belongs in the loading order.
 
-9. Code Style and Maintainability
+## Code Style and Maintainability
 
 Prism2D.js has an established coding style. New code should fit naturally into the surrounding implementation rather than introducing a different style without a good reason.
 
@@ -366,7 +367,7 @@ The goal is not to make every part of the engine look different or to refactor e
 
 If a different approach would significantly improve the code, explain the reason and its trade-offs instead of introducing a broad architectural change without discussion.
 
-10. Testing Changes
+## Testing Changes
 
 Test the behavior affected by your changes rather than assuming that code which looks correct will work correctly in the engine.
 
@@ -384,7 +385,7 @@ For changes to module loading or shared state, verify that the affected modules 
 
 The project may not provide automated tests for every system. Do not assume a test command exists without checking the current project configuration. If a suitable automated test setup is available, use it alongside manual verification.
 
-11. Documentation and Examples
+## Documentation and Examples
 
 Documentation is part of maintaining the engine.
 
