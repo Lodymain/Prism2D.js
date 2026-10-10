@@ -61,6 +61,28 @@ You are free to use Prism2D to create commercial games, paid games, free games, 
 
 <br>
 
+## Community
+
+Prism2D.js is an open-source JavaScript 2D game engine built for developers who want to explore, create, and experiment with 2D games using JavaScript.
+
+But a project like this isn't just about code. It's also about the people behind it, the ideas they share, the problems they solve, and the things they build together.
+
+That's why we've created a Discord community for Prism2D.js — a place where developers, game development enthusiasts, and curious learners can come together, ask questions, share ideas, report bugs, and help the project grow.
+
+Whether you're an experienced developer, just starting to learn JavaScript, or simply interested in how a 2D game engine works, you're welcome to join us.
+
+**Join the Community**
+
+Our Discord server is the place to talk about Prism2D.js, get help, discuss possible improvements, share feedback, and connect with others who are interested in the project.
+
+You can also suggest new features, report issues, and find out how to contribute. We encourage everyone to share their ideas, ask questions, and take part in discussions before working on major changes.
+
+We're still growing, and every useful suggestion, bug report, and contribution can help make Prism2D.js better.
+
+Interested in being part of the journey? We'd love to have you with us!
+
+Join the Prism2D.js Discord Community:https://discord.gg/Zgj6Nk4tg
+
 ## CDN and Download
 
 **CDN**
