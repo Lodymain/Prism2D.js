@@ -43,9 +43,63 @@
 | **@kavdemo** |
 <br>
 
+## Community Contributors
+
+Prism2D.js keeps growing thanks to the people who dedicate their time, knowledge, and effort to improving the engine. Every contribution matters, whether it’s code, testing, ideas, or documentation.
+
+This section recognizes the people who help develop the project and make it better.
+
+**Core Developers**
+Contributors who actively take part in developing the engine and help improve its core structure and features.
+1.`@Lodymain`
+2.`@kavdemo`
+
+**Bug Fixes**
+Contributors who find, investigate, and fix bugs, helping make the engine more stable and reliable.
+1.`@ByteLands`
+2.`@Lodymain`
+
+**New Features**
+Contributors who develop and add new features to the engine.
+1.`@Lodymain`
+2.`@kavdemo`
+3.`@ByteLands`
+
+
+**Improvements**
+Contributors who improve existing features, boost performance, and help maintain code quality.
+
+
+**Testing and Bug Detection**
+Contributors who test the engine, identify issues, reproduce bugs, and check that fixes work properly.
+2.`@kavdemo`
+3.`@Lodymain`
+
+
+**Documentation**
+Contributors who improve the documentation, create examples, and help other developers understand and use Prism2D.js.
+2.`@kavdemo`
+3.`@ByteLands`
+
+Ideas and Suggestions
+Contributors who share ideas, suggest features, and help shape the future of the engine.
+1.`@Lodymain`
+
+
+**Special Recognition**
+A space dedicated to people who make especially important contributions and have a significant impact on the growth of Prism2D.js.
+1.`@Lodymain`
+2.`@kavdemo`
+3.`@ByteLands`
+
+
+We sincerely thank all the project contributors for their effort and dedication. Without them, this project would not exist.
+
+If you want to become a contributor, join our Discord server and get involved with the community. Contributors who work hard and make meaningful contributions may be added to this list.
 ## Development Environment
 
 Prism2D was fully developed in our own web-based IDE, built from scratch by the team specifically for this project. You can use the same tool to write, test and ship your Prism2D games directly in the browser, no local installation required.
+
 
 <br>
 
