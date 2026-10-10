@@ -25,8 +25,7 @@
 | **License** | MIT |
 | **Started** | December 06, 2024 |
 | **Released** | September 13, 2026 |
-| **Engine** | HTML5 Canvas 2D |
-| **Size** | ~62KB (unminified) |
+| **Engine** | HTML5 Canvas 2D, javascript |
 | **Dependencies** | None |
 
 <br>
