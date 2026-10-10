@@ -242,18 +242,9 @@ This stable release contains every system needed to build complete 2D games.
 
 ## Bugs Fixed in 1.0.1
 
-The following bugs from previous internal builds and the 1.0.0rc.1 candidate were fixed in this stable release.
-
-- Fixed a double pixel-rounding issue between the renderer and the camera that caused a 1-pixel shake while moving inside a camera scope.
-- Fixed sprite rendering not respecting natural image size when the image finished loading after the sprite was created.
-- Fixed input state being cleared before scene draw callbacks, which made `keyHit` and `mouse.hit` unreliable inside scenes.
-- Fixed swept AABB producing false collisions when velocity on one axis was exactly zero.
-- Fixed circle vs rectangle resolution when the circle center was exactly inside the rectangle.
-- Fixed contacts dictionary leaking pairs when an object was killed, causing ghost `onLeave` and `onEnter` events.
-- Fixed tilemap camera culling ignoring camera offset and zoom, which caused tiles to pop in and out at the edges.
-- Fixed mouse world coordinates ignoring camera shake, breaking aiming during screen shake.
-- Fixed quality mode `"master"` doubling the internal resolution when combined with certain scale modes.
-- Fixed touch input losing the primary pointer when a secondary finger was released first.
+• Fixed collision and physics bugs
+• Fixed renderer bugs
+• Fixed jump and audio bugs
 
 <br>
 
