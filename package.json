@@ -1,7 +1,7 @@
 {
   "name": "prism2d",
-  "version": "1.0.0",
-  "description": "Prism2D.js is a brutally minimal 2D game engine for the browser. Zero boilerplate, no dependencies, and absolute control — built on HTML5 Canvas for simple and flexible game development.",
+  "version": "1.0.1",
+  "description": "Prism2D.js 2D game engine for the browser. Zero boilerplate, no dependencies, and absolute control — built on HTML5 Canvas for simple and flexible game development.",
   "main": "src/index.js",
   "module": "src/index.js",
   "type": "module",
