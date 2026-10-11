@@ -1,15 +1,18 @@
 /*
-prism2d.js
-1.0.1
+Prism2D.js 
+version: 1.1.0 
 MIT
 */
+
+//1.  src/index.js
+
 (function (global) {
 
   var prism = function (w, h, parent) {
     return prism.init({ width: w, height: h, parent: parent });
   };
 
-  prism.version = "1.0.1";
+  prism.version = "1.1.0";
   prism.canvas = null;
   prism.ctx = null;
   prism.width = 0;
@@ -64,6 +67,9 @@ MIT
   global.prism = prism;
 
 })(typeof window !== "undefined" ? window : this);
+
+//2.  src/core/engine.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -309,6 +315,9 @@ MIT
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//3.  src/core/loop.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -398,6 +407,9 @@ MIT
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//4.  src/core/scenes.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -446,354 +458,23 @@ MIT
   prism.current = function () { return prism._currentScene; };
 
 })(typeof window !== "undefined" ? window : this);
+
+//5.  src/core/objects.js
+
 (function (global) {
 
   var prism = global.prism;
 
-  prism._getCanvasPos = function (cx, cy) {
-    var rect = prism.canvas.getBoundingClientRect();
-    var dpr = (prism._quality === "master") ? prism._dpr : 1;
-    return {
-      x: (cx - rect.left) * (prism.canvas.width / rect.width) / dpr,
-      y: (cy - rect.top) * (prism.canvas.height / rect.height) / dpr
-    };
+  if (prism._objectsLoaded) return;
+  prism._objectsLoaded = true;
+
+  if (!prism._pidCounter) {
+    prism._pidCounter = 1;
+  }
+  
+  prism._nextPid = function () { 
+    return prism._pidCounter++; 
   };
-
-  prism._setupInput = function () {
-    var canvas = prism.canvas;
-    if (!canvas) return;
-
-    window.addEventListener("keydown", function (e) {
-      if (!prism._keys[e.key]) {
-        prism._keysNew[e.key] = true;
-        prism._keysNew[e.code] = true;
-      }
-      prism._keys[e.key] = true;
-      prism._keys[e.code] = true;
-    });
-
-    window.addEventListener("keyup", function (e) {
-      prism._keys[e.key] = false;
-      prism._keys[e.code] = false;
-      prism._keysNewUp[e.key] = true;
-      prism._keysNewUp[e.code] = true;
-    });
-
-    canvas.addEventListener("mousedown", function (e) {
-      e.preventDefault();
-      var p = prism._getCanvasPos(e.clientX, e.clientY);
-      prism._mouse.x = p.x;
-      prism._mouse.y = p.y;
-      prism._mouse.down = true;
-      prism._mouseNewPress = true;
-      prism._mouse.button = e.button;
-    });
-
-    canvas.addEventListener("mousemove", function (e) {
-      var p = prism._getCanvasPos(e.clientX, e.clientY);
-      prism._mouse.x = p.x;
-      prism._mouse.y = p.y;
-    });
-
-    canvas.addEventListener("mouseup", function (e) {
-      var p = prism._getCanvasPos(e.clientX, e.clientY);
-      prism._mouse.x = p.x;
-      prism._mouse.y = p.y;
-      prism._mouse.down = false;
-      prism._mouseNewRelease = true;
-    });
-
-    canvas.addEventListener("contextmenu", function (e) {
-      e.preventDefault();
-    });
-
-    canvas.addEventListener("touchstart", function (e) {
-      e.preventDefault();
-      prism._touchActive = true;
-      prism._updateTouches(e.touches);
-      if (e.touches.length > 0) {
-        var p = prism._getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
-        prism._mouse.x = p.x;
-        prism._mouse.y = p.y;
-        prism._mouse.down = true;
-        prism._mouseNewPress = true;
-      }
-    }, { passive: false });
-
-    canvas.addEventListener("touchmove", function (e) {
-      e.preventDefault();
-      prism._updateTouches(e.touches);
-      if (e.touches.length > 0) {
-        var p = prism._getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
-        prism._mouse.x = p.x;
-        prism._mouse.y = p.y;
-      }
-    }, { passive: false });
-
-    canvas.addEventListener("touchend", function (e) {
-      e.preventDefault();
-      prism._updateTouches(e.touches);
-      if (e.touches.length === 0) {
-        prism._mouse.down = false;
-        prism._mouseNewRelease = true;
-        prism._touchActive = false;
-      } else {
-        var p = prism._getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
-        prism._mouse.x = p.x;
-        prism._mouse.y = p.y;
-      }
-    }, { passive: false });
-
-    canvas.addEventListener("touchcancel", function (e) {
-      e.preventDefault();
-      prism._mouse.down = false;
-      prism._mouseNewRelease = true;
-      prism._touchActive = false;
-      prism._touches = [];
-    }, { passive: false });
-  };
-
-  prism._updateTouches = function (list) {
-    prism._touches = [];
-    for (var i = 0; i < list.length; i++) {
-      var t = list[i];
-      var p = prism._getCanvasPos(t.clientX, t.clientY);
-      prism._touches.push({ x: p.x, y: p.y, id: t.identifier, index: i });
-    }
-  };
-
-  prism._syncInput = function () {
-    prism._mouse.justPressed = prism._mouseNewPress;
-    prism._mouse.justReleased = prism._mouseNewRelease;
-    prism._mouseNewPress = false;
-    prism._mouseNewRelease = false;
-    prism._keysPressed = prism._keysNew;
-    prism._keysReleased = prism._keysNewUp;
-    prism._keysNew = {};
-    prism._keysNewUp = {};
-  };
-
-  prism._clearFrameInput = function () {
-    prism._mouse.justPressed = false;
-    prism._mouse.justReleased = false;
-    prism._keysPressed = {};
-    prism._keysReleased = {};
-  };
-
-  prism.key = function (k) { return prism._keys[k] === true; };
-  prism.keyHit = function (k) { return prism._keysPressed[k] === true; };
-  prism.keyUp = function (k) { return prism._keysReleased[k] === true; };
-
-  prism.axisX = function () {
-    var v = 0;
-    if (prism.key("ArrowLeft") || prism.key("KeyA") || prism.key("a")) v -= 1;
-    if (prism.key("ArrowRight") || prism.key("KeyD") || prism.key("d")) v += 1;
-    return v;
-  };
-
-  prism.axisY = function () {
-    var v = 0;
-    if (prism.key("ArrowUp") || prism.key("KeyW") || prism.key("w")) v -= 1;
-    if (prism.key("ArrowDown") || prism.key("KeyS") || prism.key("s")) v += 1;
-    return v;
-  };
-
-  prism.mouse = {
-    x: function () { return prism._mouse.x; },
-    y: function () { return prism._mouse.y; },
-    down: function () { return prism._mouse.down; },
-    hit: function () { return prism._mouse.justPressed; },
-    up: function () { return prism._mouse.justReleased; },
-    button: function () { return prism._mouse.button || 0; },
-    worldX: function () {
-      var c = prism._activeCamera;
-      return c ? prism.toWorld(c, prism._mouse.x, prism._mouse.y).x : prism._mouse.x;
-    },
-    worldY: function () {
-      var c = prism._activeCamera;
-      return c ? prism.toWorld(c, prism._mouse.x, prism._mouse.y).y : prism._mouse.y;
-    }
-  };
-
-  prism.touches = function () { return prism._touches.slice(); };
-  prism.isTouch = function () { return "ontouchstart" in window || navigator.maxTouchPoints > 0; };
-  prism.touchCount = function () { return prism._touches.length; };
-
-  prism.touchPos = function (index) {
-    var t = prism._touches[index || 0];
-    return t ? { x: t.x, y: t.y } : null;
-  };
-
-})(typeof window !== "undefined" ? window : this);
-(function (global) {
-
-  var prism = global.prism;
-
-  prism.fill = function (color) { prism.ctx.fillStyle = color; return prism; };
-  prism.stroke = function (color, width) {
-    prism.ctx.strokeStyle = color;
-    prism.ctx.lineWidth = width || 1;
-    return prism;
-  };
-
-  prism.shadow = function (color, blur, ox, oy) {
-    var ctx = prism.ctx;
-    ctx.shadowColor = color || "transparent";
-    ctx.shadowBlur = blur || 0;
-    ctx.shadowOffsetX = ox || 0;
-    ctx.shadowOffsetY = oy || 0;
-    return prism;
-  };
-
-  prism.noShadow = function () {
-    var ctx = prism.ctx;
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-    return prism;
-  };
-
-  prism.blend = function (mode) {
-    prism.ctx.globalCompositeOperation = mode || "source-over";
-    return prism;
-  };
-
-  prism.drawRect = function (x, y, w, h, color) {
-    if (color) prism.ctx.fillStyle = color;
-    prism.ctx.fillRect(prism.snap(x), prism.snap(y), w, h);
-    return prism;
-  };
-
-  prism.drawRectLine = function (x, y, w, h, color, lw) {
-    if (color) prism.ctx.strokeStyle = color;
-    prism.ctx.lineWidth = lw || 1;
-    prism.ctx.strokeRect(prism.snap(x), prism.snap(y), w, h);
-    return prism;
-  };
-
-  prism.drawRound = function (x, y, w, h, r, color) {
-    var ctx = prism.ctx;
-    r = r || 5;
-    if (color) ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-    ctx.fill();
-    return prism;
-  };
-
-  prism.drawCircle = function (x, y, r, color) {
-    if (color) prism.ctx.fillStyle = color;
-    prism.ctx.beginPath();
-    prism.ctx.arc(prism.snap(x), prism.snap(y), r, 0, Math.PI * 2);
-    prism.ctx.fill();
-    return prism;
-  };
-
-  prism.drawCircleLine = function (x, y, r, color, lw) {
-    if (color) prism.ctx.strokeStyle = color;
-    prism.ctx.lineWidth = lw || 1;
-    prism.ctx.beginPath();
-    prism.ctx.arc(prism.snap(x), prism.snap(y), r, 0, Math.PI * 2);
-    prism.ctx.stroke();
-    return prism;
-  };
-
-  prism.drawArc = function (x, y, r, startAngle, endAngle, color, lw) {
-    if (color) prism.ctx.strokeStyle = color;
-    prism.ctx.lineWidth = lw || 1;
-    prism.ctx.beginPath();
-    prism.ctx.arc(x, y, r, startAngle, endAngle);
-    prism.ctx.stroke();
-    return prism;
-  };
-
-  prism.drawLine = function (x1, y1, x2, y2, color, lw) {
-    if (color) prism.ctx.strokeStyle = color;
-    prism.ctx.lineWidth = lw || 1;
-    prism.ctx.beginPath();
-    prism.ctx.moveTo(x1, y1);
-    prism.ctx.lineTo(x2, y2);
-    prism.ctx.stroke();
-    return prism;
-  };
-
-  prism.drawTri = function (x1, y1, x2, y2, x3, y3, color) {
-    if (color) prism.ctx.fillStyle = color;
-    prism.ctx.beginPath();
-    prism.ctx.moveTo(x1, y1);
-    prism.ctx.lineTo(x2, y2);
-    prism.ctx.lineTo(x3, y3);
-    prism.ctx.closePath();
-    prism.ctx.fill();
-    return prism;
-  };
-
-  prism.drawPoly = function (points, color) {
-    if (!points || points.length < 2) return prism;
-    if (color) prism.ctx.fillStyle = color;
-    prism.ctx.beginPath();
-    prism.ctx.moveTo(points[0].x, points[0].y);
-    for (var i = 1; i < points.length; i++) prism.ctx.lineTo(points[i].x, points[i].y);
-    prism.ctx.closePath();
-    prism.ctx.fill();
-    return prism;
-  };
-
-  prism.drawGradRect = function (x, y, w, h, color1, color2, vertical) {
-    var ctx = prism.ctx;
-    var grad;
-    if (vertical) grad = ctx.createLinearGradient(x, y, x, y + h);
-    else grad = ctx.createLinearGradient(x, y, x + w, y);
-    grad.addColorStop(0, color1);
-    grad.addColorStop(1, color2);
-    ctx.fillStyle = grad;
-    ctx.fillRect(prism.snap(x), prism.snap(y), w, h);
-    return prism;
-  };
-
-  prism.drawText = function (text, x, y, opts) {
-    var o = opts || {};
-    var ctx = prism.ctx;
-    ctx.font = (o.italic ? "italic " : "") + (o.bold ? "bold " : "") + (o.size || 16) + "px " + (o.font || "Arial");
-    ctx.fillStyle = o.color || "#fff";
-    ctx.textAlign = o.align || "left";
-    ctx.textBaseline = o.baseline || "top";
-
-    if (o.outline) {
-      ctx.strokeStyle = o.outlineColor || "#000";
-      ctx.lineWidth = o.outlineWidth || 2;
-      ctx.lineJoin = "round";
-      ctx.strokeText(text, prism.snap(x), prism.snap(y));
-    }
-
-    ctx.fillText(text, prism.snap(x), prism.snap(y));
-    return prism;
-  };
-
-  prism.measureText = function (text, size, font) {
-    var ctx = prism.ctx;
-    ctx.font = (size || 16) + "px " + (font || "Arial");
-    return ctx.measureText(text).width;
-  };
-
-  prism.push = function () { prism.ctx.save(); return prism; };
-  prism.pop = function () { prism.ctx.restore(); return prism; };
-  prism.translate = function (x, y) { prism.ctx.translate(x, y); return prism; };
-  prism.rotate = function (r) { prism.ctx.rotate(r); return prism; };
-  prism.scale = function (x, y) { prism.ctx.scale(x, y === undefined ? x : y); return prism; };
-
-  var _pidCounter = 1;
-  prism._nextPid = function () { return _pidCounter++; };
 
   prism._registerGroup = function (obj) {
     if (!obj.tag) return;
@@ -874,14 +555,55 @@ MIT
     obj.flip = function (fx, fy) { obj._flipX = !!fx; obj._flipY = !!fy; return obj; };
     obj.scaleXY = function (sx, sy) { obj._sx = sx; obj._sy = (sy === undefined ? sx : sy); return obj; };
 
-    obj.body = function () {
-      obj.gravity = true; obj._isBody = true;
+    obj.body = function (cfg) {
+      obj._isBody = true;
+      if (cfg && typeof cfg === "object" && !Array.isArray(cfg)) {
+        var bodyType = cfg.type;
+        if (bodyType !== "static" && bodyType !== "kinematic" && bodyType !== "dynamic") {
+          bodyType = "dynamic";
+        }
+
+        if (bodyType === "static") {
+          obj.gravity = false;
+          obj.frozen = true;
+        } else if (bodyType === "kinematic") {
+          obj.gravity = false;
+          obj.frozen = false;
+        } else {
+          obj.gravity = true;
+          obj.frozen = false;
+        }
+
+        if (cfg.gravityScale !== undefined) {
+          obj.gravityScale = cfg.gravityScale;
+        }
+        if (cfg.friction !== undefined) {
+          obj.friction = cfg.friction;
+        }
+        if (cfg.restitution !== undefined) {
+          obj.bounce = cfg.restitution;
+        }
+        if (cfg.maxSpeed !== undefined) {
+          if (Array.isArray(cfg.maxSpeed)) {
+            obj.maxVX = cfg.maxSpeed[0];
+            obj.maxVY = cfg.maxSpeed[1];
+          } else {
+            obj.maxVX = cfg.maxSpeed;
+            obj.maxVY = cfg.maxSpeed;
+          }
+        }
+      } else {
+        obj.gravity = true;
+        obj.frozen = false;
+      }
       prism.addBody(obj);
       return obj;
     };
 
     obj.kinematic = function () {
-      obj.gravity = false; obj._isBody = true;
+      obj.gravity = false;
+      obj.frozen = false;
+      obj._isBody = true;
       prism.addBody(obj);
       return obj;
     };
@@ -1118,6 +840,359 @@ MIT
     return makeShape("circle", { x: x || 0, y: y || 0, radius: r, w: r * 2, h: r * 2 });
   };
 
+})(typeof window !== "undefined" ? window : this);
+
+//6.  src/input/input.js
+
+(function (global) {
+
+  var prism = global.prism;
+
+  prism._getCanvasPos = function (cx, cy) {
+    var rect = prism.canvas.getBoundingClientRect();
+    var dpr = (prism._quality === "master") ? prism._dpr : 1;
+    return {
+      x: (cx - rect.left) * (prism.canvas.width / rect.width) / dpr,
+      y: (cy - rect.top) * (prism.canvas.height / rect.height) / dpr
+    };
+  };
+
+  prism._setupInput = function () {
+    var canvas = prism.canvas;
+    if (!canvas) return;
+
+    window.addEventListener("keydown", function (e) {
+      if (!prism._keys[e.key]) {
+        prism._keysNew[e.key] = true;
+        prism._keysNew[e.code] = true;
+      }
+      prism._keys[e.key] = true;
+      prism._keys[e.code] = true;
+    });
+
+    window.addEventListener("keyup", function (e) {
+      prism._keys[e.key] = false;
+      prism._keys[e.code] = false;
+      prism._keysNewUp[e.key] = true;
+      prism._keysNewUp[e.code] = true;
+    });
+
+    canvas.addEventListener("mousedown", function (e) {
+      e.preventDefault();
+      var p = prism._getCanvasPos(e.clientX, e.clientY);
+      prism._mouse.x = p.x;
+      prism._mouse.y = p.y;
+      prism._mouse.down = true;
+      prism._mouseNewPress = true;
+      prism._mouse.button = e.button;
+    });
+
+    canvas.addEventListener("mousemove", function (e) {
+      var p = prism._getCanvasPos(e.clientX, e.clientY);
+      prism._mouse.x = p.x;
+      prism._mouse.y = p.y;
+    });
+
+    canvas.addEventListener("mouseup", function (e) {
+      var p = prism._getCanvasPos(e.clientX, e.clientY);
+      prism._mouse.x = p.x;
+      prism._mouse.y = p.y;
+      prism._mouse.down = false;
+      prism._mouseNewRelease = true;
+    });
+
+    canvas.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+    });
+
+    canvas.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      prism._touchActive = true;
+      prism._updateTouches(e.touches);
+      if (e.touches.length > 0) {
+        var p = prism._getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+        prism._mouse.x = p.x;
+        prism._mouse.y = p.y;
+        prism._mouse.down = true;
+        prism._mouseNewPress = true;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (e) {
+      e.preventDefault();
+      prism._updateTouches(e.touches);
+      if (e.touches.length > 0) {
+        var p = prism._getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+        prism._mouse.x = p.x;
+        prism._mouse.y = p.y;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function (e) {
+      e.preventDefault();
+      prism._updateTouches(e.touches);
+      if (e.touches.length === 0) {
+        prism._mouse.down = false;
+        prism._mouseNewRelease = true;
+        prism._touchActive = false;
+      } else {
+        var p = prism._getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+        prism._mouse.x = p.x;
+        prism._mouse.y = p.y;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener("touchcancel", function (e) {
+      e.preventDefault();
+      prism._mouse.down = false;
+      prism._mouseNewRelease = true;
+      prism._touchActive = false;
+      prism._touches = [];
+    }, { passive: false });
+  };
+
+  prism._updateTouches = function (list) {
+    prism._touches = [];
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i];
+      var p = prism._getCanvasPos(t.clientX, t.clientY);
+      prism._touches.push({ x: p.x, y: p.y, id: t.identifier, index: i });
+    }
+  };
+
+  prism._syncInput = function () {
+    prism._mouse.justPressed = prism._mouseNewPress;
+    prism._mouse.justReleased = prism._mouseNewRelease;
+    prism._mouseNewPress = false;
+    prism._mouseNewRelease = false;
+    prism._keysPressed = prism._keysNew;
+    prism._keysReleased = prism._keysNewUp;
+    prism._keysNew = {};
+    prism._keysNewUp = {};
+  };
+
+  prism._clearFrameInput = function () {
+    prism._mouse.justPressed = false;
+    prism._mouse.justReleased = false;
+    prism._keysPressed = {};
+    prism._keysReleased = {};
+  };
+
+  prism.key = function (k) { return prism._keys[k] === true; };
+  prism.keyHit = function (k) { return prism._keysPressed[k] === true; };
+  prism.keyUp = function (k) { return prism._keysReleased[k] === true; };
+
+  prism.axisX = function () {
+    var v = 0;
+    if (prism.key("ArrowLeft") || prism.key("KeyA") || prism.key("a")) v -= 1;
+    if (prism.key("ArrowRight") || prism.key("KeyD") || prism.key("d")) v += 1;
+    return v;
+  };
+
+  prism.axisY = function () {
+    var v = 0;
+    if (prism.key("ArrowUp") || prism.key("KeyW") || prism.key("w")) v -= 1;
+    if (prism.key("ArrowDown") || prism.key("KeyS") || prism.key("s")) v += 1;
+    return v;
+  };
+
+  prism.mouse = {
+    x: function () { return prism._mouse.x; },
+    y: function () { return prism._mouse.y; },
+    down: function () { return prism._mouse.down; },
+    hit: function () { return prism._mouse.justPressed; },
+    up: function () { return prism._mouse.justReleased; },
+    button: function () { return prism._mouse.button || 0; },
+    worldX: function () {
+      var c = prism._activeCamera;
+      return c ? prism.toWorld(c, prism._mouse.x, prism._mouse.y).x : prism._mouse.x;
+    },
+    worldY: function () {
+      var c = prism._activeCamera;
+      return c ? prism.toWorld(c, prism._mouse.x, prism._mouse.y).y : prism._mouse.y;
+    }
+  };
+
+  prism.touches = function () { return prism._touches.slice(); };
+  prism.isTouch = function () { return "ontouchstart" in window || navigator.maxTouchPoints > 0; };
+  prism.touchCount = function () { return prism._touches.length; };
+
+  prism.touchPos = function (index) {
+    var t = prism._touches[index || 0];
+    return t ? { x: t.x, y: t.y } : null;
+  };
+
+})(typeof window !== "undefined" ? window : this);
+
+//7.  src/graphics/renderer.js
+
+(function (global) {
+
+  var prism = global.prism;
+
+  prism.fill = function (color) { prism.ctx.fillStyle = color; return prism; };
+  prism.stroke = function (color, width) {
+    prism.ctx.strokeStyle = color;
+    prism.ctx.lineWidth = width || 1;
+    return prism;
+  };
+
+  prism.shadow = function (color, blur, ox, oy) {
+    var ctx = prism.ctx;
+    ctx.shadowColor = color || "transparent";
+    ctx.shadowBlur = blur || 0;
+    ctx.shadowOffsetX = ox || 0;
+    ctx.shadowOffsetY = oy || 0;
+    return prism;
+  };
+
+  prism.noShadow = function () {
+    var ctx = prism.ctx;
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    return prism;
+  };
+
+  prism.blend = function (mode) {
+    prism.ctx.globalCompositeOperation = mode || "source-over";
+    return prism;
+  };
+
+  prism.drawRect = function (x, y, w, h, color) {
+    if (color) prism.ctx.fillStyle = color;
+    prism.ctx.fillRect(prism.snap(x), prism.snap(y), w, h);
+    return prism;
+  };
+
+  prism.drawRectLine = function (x, y, w, h, color, lw) {
+    if (color) prism.ctx.strokeStyle = color;
+    prism.ctx.lineWidth = lw || 1;
+    prism.ctx.strokeRect(prism.snap(x), prism.snap(y), w, h);
+    return prism;
+  };
+
+  prism.drawRound = function (x, y, w, h, r, color) {
+    var ctx = prism.ctx;
+    r = r || 5;
+    if (color) ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+    return prism;
+  };
+
+  prism.drawCircle = function (x, y, r, color) {
+    if (color) prism.ctx.fillStyle = color;
+    prism.ctx.beginPath();
+    prism.ctx.arc(prism.snap(x), prism.snap(y), r, 0, Math.PI * 2);
+    prism.ctx.fill();
+    return prism;
+  };
+
+  prism.drawCircleLine = function (x, y, r, color, lw) {
+    if (color) prism.ctx.strokeStyle = color;
+    prism.ctx.lineWidth = lw || 1;
+    prism.ctx.beginPath();
+    prism.ctx.arc(prism.snap(x), prism.snap(y), r, 0, Math.PI * 2);
+    prism.ctx.stroke();
+    return prism;
+  };
+
+  prism.drawArc = function (x, y, r, startAngle, endAngle, color, lw) {
+    if (color) prism.ctx.strokeStyle = color;
+    prism.ctx.lineWidth = lw || 1;
+    prism.ctx.beginPath();
+    prism.ctx.arc(x, y, r, startAngle, endAngle);
+    prism.ctx.stroke();
+    return prism;
+  };
+
+  prism.drawLine = function (x1, y1, x2, y2, color, lw) {
+    if (color) prism.ctx.strokeStyle = color;
+    prism.ctx.lineWidth = lw || 1;
+    prism.ctx.beginPath();
+    prism.ctx.moveTo(x1, y1);
+    prism.ctx.lineTo(x2, y2);
+    prism.ctx.stroke();
+    return prism;
+  };
+
+  prism.drawTri = function (x1, y1, x2, y2, x3, y3, color) {
+    if (color) prism.ctx.fillStyle = color;
+    prism.ctx.beginPath();
+    prism.ctx.moveTo(x1, y1);
+    prism.ctx.lineTo(x2, y2);
+    prism.ctx.lineTo(x3, y3);
+    prism.ctx.closePath();
+    prism.ctx.fill();
+    return prism;
+  };
+
+  prism.drawPoly = function (points, color) {
+    if (!points || points.length < 2) return prism;
+    if (color) prism.ctx.fillStyle = color;
+    prism.ctx.beginPath();
+    prism.ctx.moveTo(points[0].x, points[0].y);
+    for (var i = 1; i < points.length; i++) prism.ctx.lineTo(points[i].x, points[i].y);
+    prism.ctx.closePath();
+    prism.ctx.fill();
+    return prism;
+  };
+
+  prism.drawGradRect = function (x, y, w, h, color1, color2, vertical) {
+    var ctx = prism.ctx;
+    var grad;
+    if (vertical) grad = ctx.createLinearGradient(x, y, x, y + h);
+    else grad = ctx.createLinearGradient(x, y, x + w, y);
+    grad.addColorStop(0, color1);
+    grad.addColorStop(1, color2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(prism.snap(x), prism.snap(y), w, h);
+    return prism;
+  };
+
+  prism.drawText = function (text, x, y, opts) {
+    var o = opts || {};
+    var ctx = prism.ctx;
+    ctx.font = (o.italic ? "italic " : "") + (o.bold ? "bold " : "") + (o.size || 16) + "px " + (o.font || "Arial");
+    ctx.fillStyle = o.color || "#fff";
+    ctx.textAlign = o.align || "left";
+    ctx.textBaseline = o.baseline || "top";
+
+    if (o.outline) {
+      ctx.strokeStyle = o.outlineColor || "#000";
+      ctx.lineWidth = o.outlineWidth || 2;
+      ctx.lineJoin = "round";
+      ctx.strokeText(text, prism.snap(x), prism.snap(y));
+    }
+
+    ctx.fillText(text, prism.snap(x), prism.snap(y));
+    return prism;
+  };
+
+  prism.measureText = function (text, size, font) {
+    var ctx = prism.ctx;
+    ctx.font = (size || 16) + "px " + (font || "Arial");
+    return ctx.measureText(text).width;
+  };
+
+  prism.push = function () { prism.ctx.save(); return prism; };
+  prism.pop = function () { prism.ctx.restore(); return prism; };
+  prism.translate = function (x, y) { prism.ctx.translate(x, y); return prism; };
+  prism.rotate = function (r) { prism.ctx.rotate(r); return prism; };
+  prism.scale = function (x, y) { prism.ctx.scale(x, y === undefined ? x : y); return prism; };
+
   function renderX(obj) {
     if (!obj._isBody || !prism._interpolate) return obj.x;
     return obj._prevX + (obj.x - obj._prevX) * prism._alpha;
@@ -1216,6 +1291,9 @@ MIT
   prism.renderY = renderY;
 
 })(typeof window !== "undefined" ? window : this);
+
+//8.  src/graphics/sprites.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -1223,7 +1301,7 @@ MIT
   prism.load = function (name, src, cb) {
     var img = new Image();
     img.onload = function () { prism._images[name] = img; if (cb) cb(img); };
-    img.onerror = function () { console.warn("Prism2D: image failed " + src); if (cb) cb(null); };
+    img.onerror = function () { if (cb) cb(null); };
     img.src = src;
     return prism;
   };
@@ -1240,6 +1318,17 @@ MIT
         });
       })(keys[i]);
     }
+    return prism;
+  };
+
+  prism.loadFont = function (name, src, cb) {
+    var font = new FontFace(name, "url('" + src + "')");
+    font.load().then(function (loaded) {
+      document.fonts.add(loaded);
+      if (cb) cb(loaded);
+    }).catch(function () {
+      if (cb) cb(null);
+    });
     return prism;
   };
 
@@ -1314,6 +1403,9 @@ MIT
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//9.  src/graphics/particles.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -1483,6 +1575,9 @@ MIT
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//10.  src/physics/aabb.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -1930,6 +2025,9 @@ MIT
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//11. src/physics/tilemap.js
+
 (function (global) {
 
   var prism = global.prism;
@@ -2115,28 +2213,71 @@ MIT
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//12. src/camera/camera.js
+
 (function (global) {
 
   var prism = global.prism;
 
+  function getCamX(cam) {
+    if (!prism._interpolate || cam._prevX === undefined) return cam.x;
+    return cam._prevX + (cam.x - cam._prevX) * prism._alpha;
+  }
+
+  function getCamY(cam) {
+    if (!prism._interpolate || cam._prevY === undefined) return cam.y;
+    return cam._prevY + (cam.y - cam._prevY) * prism._alpha;
+  }
+
   prism.camera = function (x, y) {
     var cam = {
-      x: x || 0, y: y || 0,
-      zoom: 1, rotation: 0,
+      x: x || 0,
+      y: y || 0,
+      _prevX: x || 0,
+      _prevY: y || 0,
+      zoom: 1, 
+      rotation: 0,
       target: null,
-      lerpX: 1, lerpY: 1,
-      followX: true, followY: true,
-      offsetX: 0, offsetY: 0,
-      targetOffsetX: 0, targetOffsetY: 0,
-      shakeAmount: 0, shakeDuration: 0,
-      shakeX: 0, shakeY: 0,
+      lerpX: 1, 
+      lerpY: 1,
+      followX: true, 
+      followY: true,
+      offsetX: 0, 
+      offsetY: 0,
+      targetOffsetX: 0, 
+      targetOffsetY: 0,
+      shakeAmount: 0, 
+      shakeDuration: 0,
+      shakeX: 0, 
+      shakeY: 0,
       bounds: null,
-      deadzoneW: 0, deadzoneH: 0,
+      deadzoneW: 0, 
+      deadzoneH: 0,
 
-      at: function (px, py) { cam.x = px; cam.y = py; return cam; },
-      moveBy: function (dx, dy) { cam.x += dx; cam.y += dy; return cam; },
-      zoomTo: function (z) { cam.zoom = z; return cam; },
-      rotateTo: function (r) { cam.rotation = r; return cam; },
+      at: function (px, py) { 
+        cam.x = px; 
+        cam.y = py; 
+        cam._prevX = px;
+        cam._prevY = py;
+        return cam; 
+      },
+      
+      moveBy: function (dx, dy) { 
+        cam.x += dx; 
+        cam.y += dy; 
+        return cam; 
+      },
+      
+      zoomTo: function (z) { 
+        cam.zoom = z; 
+        return cam; 
+      },
+      
+      rotateTo: function (r) { 
+        cam.rotation = r; 
+        return cam; 
+      },
 
       follow: function (target, lx, ly) {
         cam.target = target;
@@ -2154,7 +2295,8 @@ MIT
       },
 
       axis: function (fx, fy) {
-        cam.followX = !!fx; cam.followY = !!fy;
+        cam.followX = !!fx; 
+        cam.followY = !!fy;
         return cam;
       },
 
@@ -2204,6 +2346,8 @@ MIT
         if (!cam.target) return cam;
         cam.x = cam.target.x + (cam.target.w || 0) * 0.5 + cam.targetOffsetX;
         cam.y = cam.target.y + (cam.target.h || 0) * 0.5 + cam.targetOffsetY;
+        cam._prevX = cam.x;
+        cam._prevY = cam.y;
         return cam;
       },
 
@@ -2222,6 +2366,9 @@ MIT
 
   prism.updateCamera = function (cam, dt) {
     if (!cam) return;
+
+    cam._prevX = cam.x;
+    cam._prevY = cam.y;
 
     if (cam.target) {
       var tx = cam.target.x + (cam.target.w || 0) * 0.5 + cam.targetOffsetX;
@@ -2272,7 +2419,9 @@ MIT
       cam.shakeX = (Math.random() * 2 - 1) * cam.shakeAmount;
       cam.shakeY = (Math.random() * 2 - 1) * cam.shakeAmount;
       if (cam.shakeDuration <= 0) {
-        cam.shakeX = 0; cam.shakeY = 0; cam.shakeAmount = 0;
+        cam.shakeX = 0; 
+        cam.shakeY = 0; 
+        cam.shakeAmount = 0;
       }
     }
   };
@@ -2290,8 +2439,10 @@ MIT
     if (cam.zoom !== 1) ctx.scale(cam.zoom, cam.zoom);
     if (cam.rotation) ctx.rotate(cam.rotation);
 
-    var tx = -cam.x + cam.shakeX;
-    var ty = -cam.y + cam.shakeY;
+    var cx = getCamX(cam);
+    var cy = getCamY(cam);
+    var tx = -cx + cam.shakeX;
+    var ty = -cy + cam.shakeY;
     if (canSnap) {
       ctx.translate(Math.round(tx), Math.round(ty));
     } else {
@@ -2303,21 +2454,28 @@ MIT
 
   prism.toWorld = function (cam, sx, sy) {
     if (!cam) return { x: sx, y: sy };
+    var cx = getCamX(cam);
+    var cy = getCamY(cam);
     return {
-      x: (sx - prism.width * 0.5 - cam.offsetX) / cam.zoom + cam.x - cam.shakeX,
-      y: (sy - prism.height * 0.5 - cam.offsetY) / cam.zoom + cam.y - cam.shakeY
+      x: (sx - prism.width * 0.5 - cam.offsetX) / cam.zoom + cx - cam.shakeX,
+      y: (sy - prism.height * 0.5 - cam.offsetY) / cam.zoom + cy - cam.shakeY
     };
   };
 
   prism.toScreen = function (cam, wx, wy) {
     if (!cam) return { x: wx, y: wy };
+    var cx = getCamX(cam);
+    var cy = getCamY(cam);
     return {
-      x: (wx - cam.x + cam.shakeX) * cam.zoom + prism.width * 0.5 + cam.offsetX,
-      y: (wy - cam.y + cam.shakeY) * cam.zoom + prism.height * 0.5 + cam.offsetY
+      x: (wx - cx + cam.shakeX) * cam.zoom + prism.width * 0.5 + cam.offsetX,
+      y: (wy - cy + cam.shakeY) * cam.zoom + prism.height * 0.5 + cam.offsetY
     };
   };
 
 })(typeof window !== "undefined" ? window : this);
+
+//13. src/audio/audio.js
+
 (function (global) {
 
   var prism = global.prism;
