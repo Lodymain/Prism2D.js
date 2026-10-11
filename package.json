@@ -1,6 +1,6 @@
 {
   "name": "prism2d",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Prism2D.js 2D game engine for the browser. Zero boilerplate, no dependencies, and absolute control — built on HTML5 Canvas for simple and flexible game development.",
   "repository": {
     "type": "git",
