@@ -4,7 +4,7 @@
     return prism.init({ width: w, height: h, parent: parent });
   };
 
-  prism.version = "1.0.0rc.1";
+  prism.version = "1.1.0";
   prism.canvas = null;
   prism.ctx = null;
   prism.width = 0;
