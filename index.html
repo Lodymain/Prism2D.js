@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Coin Adventure — Prism2D</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: #070b14; overflow: hidden; }
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script>
+// ============================================================================
+//  Coin Adventure — built on Prism2D (scenes, tilemaps, sprites, bodies,
+//  collision handlers, camera, emitters, timers, audio and touch input).
+// ============================================================================
+
+var VIEW_W = 960, VIEW_H = 540;
+var TILE = 48, ROWS = 13, GROUND_ROW = 10;
+var FONT = "system-ui, sans-serif";
+
+// ---------------------------------------------------------------------------
+//  Assets
+// ---------------------------------------------------------------------------
+var IMAGE_FILES = {
+  player: "character_roundYellow.png", hurt: "character_roundRed.png", low: "character_roundPurple.png",
+  eG: "character_squareGreen.png", eP: "character_squarePurple.png", eR: "character_squareRed.png", eY: "character_squareYellow.png",
+  hG: "character_handGreen.png", hP: "character_handPurple.png", hR: "character_handRed.png", hY: "character_handYellow.png",
+  coin: "tile_coin.png", gem: "tile_gem.png", heart: "tile_heart.png", sword: "item_sword.png", shield: "item_shield.png",
+  grass: "tile_grass.png", top: "tile_top.png", brick: "tile_brick.png", stone: "tile_stone.png", sand: "tile_sand.png", bridge: "tile_bridge.png",
+  spikes: "tile_spikes.png", door: "tile_door.png", flag: "tile_flag.png", chest: "tile_chest.png", blast: "effect_blast.png", shot: "effect_shot.png",
+  cog: "tile_cog.png", key: "tile_key.png", spring: "tile_arrowUp.png", water: "tile_water.png", fence: "tile_fence.png", bushH: "tile_bushHalf.png",
+  cloudA: "background_cloudA.png", cloudB: "background_cloudB.png", tree: "background_tree.png", treeL: "background_treeLarge.png",
+  bush: "tile_bush.png", castle: "tile_castle.png", column: "tile_column.png"
+};
+
+// Each theme picks the tile images for the surface, the filling and the thin
+// platforms, plus the scenery props as [image, width, height] in tiles.
+var THEMES = {
+  forest: { surface: "grass", fill: "grass", platform: "top", water: true, props: [["tree", 1.4, 2.5], ["treeL", 2, 3], ["bush", 1, 0.7]] },
+  desert: { surface: "sand", fill: "sand", platform: "stone", water: true, props: [["fence", 1, 1], ["bushH", 1, 0.6]] },
+  ruins:  { surface: "stone", fill: "stone", platform: "brick", water: true, props: [["column", 0.6, 2], ["castle", 2, 2.5]] },
+  sky:    { surface: "grass", fill: "grass", platform: "bridge", water: false, props: [["bush", 1, 0.7], ["tree", 1.4, 2.5]] },
+  castle: { surface: "brick", fill: "brick", platform: "stone", water: true, props: [["column", 0.7, 2.4], ["castle", 2.2, 2.8]] },
+  boss:   { surface: "brick", fill: "brick", platform: "stone", water: false, props: [["column", 0.8, 2.6], ["castle", 2.5, 3]] }
+};
+
+// Tile ids inside the generated tileset.
+var TILE_SURFACE = 0, TILE_FILL = 1, TILE_PLATFORM = 2, TILE_SPIKES = 3, TILE_WATER = 4;
+var SOLID_TILES = [TILE_SURFACE, TILE_FILL, TILE_PLATFORM];
+
+// ---------------------------------------------------------------------------
+//  Level data helpers
+// ---------------------------------------------------------------------------
+// A small drawing helper for the level layout: "#" is solid, "S" is spikes.
+function createGrid(cols) {
+  var cells = [];
+  for (var r = 0; r < ROWS; r++) {
+    var row = [];
+    for (var c = 0; c < cols; c++) row.push(".");
+    cells.push(row);
+  }
+  return {
+    fill: function (fromCol, toCol, fromRow, toRow, char) {
+      for (var r = fromRow; r <= toRow; r++) {
+        for (var c = fromCol; c <= toCol; c++) {
+          if (r >= 0 && r < ROWS && c >= 0 && c < cols) cells[r][c] = char || "#";
+        }
+      }
+      return this;
+    },
+    ground: function (fromCol, toCol) { return this.fill(fromCol, toCol, GROUND_ROW, ROWS - 1); },
+    platform: function (fromCol, toCol, row) { return this.fill(fromCol, toCol, row, row); },
+    block: function (fromCol, toCol, fromRow, toRow) { return this.fill(fromCol, toCol, fromRow, toRow); },
+    spikes: function (fromCol, toCol, row) { return this.fill(fromCol, toCol, row, row, "S"); },
+    rows: function () { return cells.map(function (row) { return row.join(""); }); }
+  };
+}
+
+function across(fromCol, toCol, row) {
+  var points = [];
+  for (var c = fromCol; c <= toCol; c++) points.push([c, row]);
+  return points;
+}
+
+function walker(sprite, col, width, row, hp, shoots, speed) {
+  return { kind: "walker", sprite: sprite, col: col, width: width, row: row, hp: hp, shoots: shoots || 0, speed: speed || 45 };
+}
+
+function flier(sprite, fromCol, toCol, row, amplitude, speed) {
+  return { kind: "flier", sprite: sprite, fromCol: fromCol, toCol: toCol, row: row, amplitude: amplitude, speed: speed || 65 };
+}
+
+// ---------------------------------------------------------------------------
+//  Levels
+// ---------------------------------------------------------------------------
+function forestLevel() {
+  var g = createGrid(64);
+  g.ground(0, 13).ground(16, 29).ground(32, 47).ground(50, 63);
+  g.platform(19, 21, 8).block(36, 43, 9, 9).block(38, 41, 8, 8).spikes(44, 45, 9).platform(52, 54, 8).platform(56, 58, 6);
+  return {
+    name: "Forest Trail", theme: "forest", sky: ["#0d1b33", "#1a3a5c"], map: g.rows(), start: [1, 9],
+    coins: [].concat(across(3, 7, 9), [[13, 8], [14, 7], [15, 7], [16, 8]], across(19, 21, 6), across(24, 27, 7), [[30, 8], [31, 8]],
+      across(38, 41, 6), [[44, 8], [45, 8]], [[48, 8], [49, 8]], across(52, 54, 6), across(56, 58, 4), across(59, 60, 9)),
+    enemies: [
+      walker("eG", 7, 6, 9, 1, 0, 40), walker("eG", 22, 5, 9, 1, 0, 45), walker("eP", 33, 3, 9, 2, 0, 45), walker("eP", 59, 4, 9, 2, 1, 45),
+      flier("hG", 36, 44, 5, 0.5, 60), flier("hY", 16, 29, 6, 0.6, 60)
+    ],
+    items: [{ col: 11, row: 8, type: "sword" }, { col: 20, row: 5, type: "heart" }, { col: 40, row: 6, type: "shield" }, { col: 57, row: 4, type: "sword" }],
+    chests: [{ col: 26, row: 9, loot: "heart" }, { col: 47, row: 9, loot: "gem" }],
+    checkpoints: [[32, 9]], goal: [62, 9]
+  };
+}
+
+function desertLevel() {
+  var g = createGrid(70);
+  g.ground(0, 11).ground(14, 25).ground(32, 49).ground(52, 69);
+  g.spikes(19, 20, 9).block(34, 43, 9, 9).block(36, 41, 8, 8).block(38, 39, 7, 7).platform(57, 60, 6).spikes(63, 64, 9);
+  return {
+    name: "Scorched Dunes", theme: "desert", sky: ["#2a1a10", "#7a4420"], map: g.rows(), start: [1, 9],
+    coins: [].concat(across(2, 6, 9), [[11, 8], [12, 7], [13, 7], [14, 8]], [[19, 8], [20, 8]], across(21, 24, 7), [[27, 8], [28, 8], [29, 8]],
+      across(36, 37, 6), across(40, 41, 6), [[38, 5], [39, 5]], across(45, 48, 7), [[50, 8], [51, 8]], across(57, 60, 4), [[63, 8], [64, 8]], [[65, 7], [66, 7]]),
+    enemies: [
+      walker("eP", 4, 7, 9, 2, 0, 45), walker("eG", 21, 4, 9, 1, 0, 45), walker("eR", 44, 6, 9, 2, 1, 50), walker("eG", 55, 4, 9, 1, 0, 45),
+      flier("hY", 14, 25, 6, 0.6, 60), flier("hR", 53, 66, 7, 0.5, 70)
+    ],
+    items: [{ col: 9, row: 8, type: "sword" }, { col: 58, row: 4, type: "heart" }, { col: 47, row: 8, type: "sword" }],
+    chests: [{ col: 38, row: 6, loot: "shield" }, { col: 49, row: 9, loot: "gem" }],
+    movers: [{ col: 26, row: 10, width: 2, axis: "x", min: 26, max: 30, speed: 60 }],
+    springs: [[54, 9]], cogs: [[60, 9], [66, 9]], checkpoints: [[32, 9], [52, 9]], goal: [68, 9]
+  };
+}
+
+function ruinsLevel() {
+  var g = createGrid(68);
+  g.ground(0, 9).ground(12, 23).block(28, 40, 7, 12).block(45, 67, 7, 12);
+  g.spikes(18, 19, 9).spikes(33, 34, 6).spikes(54, 55, 6).platform(48, 50, 5).platform(52, 54, 3);
+  return {
+    name: "Ancient Ruins", theme: "ruins", sky: ["#1a1228", "#2a1a40"], map: g.rows(), start: [1, 9],
+    coins: [].concat(across(2, 6, 9), [[10, 8], [11, 8]], across(13, 22, 7), [[25, 5], [26, 5]], across(29, 32, 5), [[33, 4], [34, 4]], across(36, 40, 5),
+      [[42, 5], [43, 5]], across(46, 47, 5), across(56, 60, 5), [[62, 4], [63, 4]]),
+    enemies: [
+      walker("eP", 3, 6, 9, 2, 0, 45), walker("eG", 13, 5, 9, 2, 0, 45), walker("eP", 20, 3, 9, 2, 0, 50), walker("eP", 29, 4, 6, 2, 0, 50),
+      walker("eR", 36, 5, 6, 2, 1, 50), walker("eG", 46, 6, 6, 2, 0, 50), walker("eR", 56, 5, 6, 3, 1, 55),
+      flier("hP", 45, 60, 4, 0.5, 70)
+    ],
+    items: [{ col: 6, row: 8, type: "sword" }, { col: 30, row: 5, type: "shield" }, { col: 38, row: 5, type: "sword" }, { col: 49, row: 3, type: "heart" }],
+    chests: [{ col: 22, row: 9, loot: "heart" }, { col: 60, row: 6, loot: "gem" }],
+    movers: [
+      { col: 24, row: 10, width: 4, axis: "y", min: 7, max: 10, speed: 55 },
+      { col: 41, row: 7, width: 3, axis: "x", min: 41, max: 42, speed: 55 }
+    ],
+    cogs: [[62, 6]], checkpoints: [[28, 6], [45, 6]], key: { col: 53, row: 1 }, goal: [65, 6]
+  };
+}
+
+function skyLevel() {
+  var g = createGrid(72);
+  g.block(0, 8, 10, 11).platform(9, 13, 10).block(14, 20, 10, 11).platform(22, 24, 9).platform(26, 28, 8).platform(30, 32, 7);
+  g.block(36, 46, 6, 7).platform(48, 53, 6).block(55, 71, 8, 9).platform(5, 8, 6).spikes(59, 60, 7);
+  return {
+    name: "Sky Bridge", theme: "sky", sky: ["#0a2a55", "#3a7ac0"], map: g.rows(), start: [1, 9],
+    coins: [].concat(across(1, 4, 9), [[5, 4], [7, 4], [8, 4]], across(9, 13, 9), across(15, 19, 8), across(22, 24, 7), across(26, 28, 6), across(30, 32, 5),
+      [[33, 5], [34, 5]], across(37, 45, 4), across(48, 53, 4), across(56, 58, 6), [[59, 6], [60, 6]], across(61, 67, 6)),
+    enemies: [
+      walker("eG", 15, 6, 9, 1, 0, 45), walker("eR", 37, 9, 5, 2, 1, 50), walker("eG", 56, 2, 7, 2, 0, 45), walker("eR", 65, 3, 7, 2, 1, 50),
+      flier("hR", 10, 20, 6, 0.6, 65), flier("hG", 22, 32, 4, 0.5, 65), flier("hY", 48, 56, 4, 0.6, 70)
+    ],
+    items: [{ col: 6, row: 4, type: "heart" }, { col: 11, row: 8, type: "sword" }, { col: 31, row: 4, type: "shield" }, { col: 40, row: 3, type: "sword" }],
+    chests: [{ col: 11, row: 9, loot: "heart" }, { col: 45, row: 5, loot: "gem" }],
+    movers: [{ col: 33, row: 7, width: 2, axis: "x", min: 33, max: 34, speed: 55 }],
+    springs: [[2, 9]], cogs: [[64, 7]], checkpoints: [[37, 5], [55, 7]], goal: [69, 7]
+  };
+}
+
+function castleLevel() {
+  var g = createGrid(80);
+  g.ground(0, 13).ground(16, 31).ground(34, 52).ground(55, 79);
+  g.spikes(36, 46, 9).platform(36, 37, 8).platform(39, 40, 7).platform(42, 43, 7).platform(45, 46, 8);
+  g.block(8, 11, 3, 4).block(60, 64, 3, 4).block(70, 73, 4, 5);
+  return {
+    name: "Dark Castle", theme: "castle", sky: ["#241018", "#3a1828"], map: g.rows(), start: [1, 9],
+    coins: [].concat(across(2, 9, 9), [[13, 8], [14, 7], [15, 7], [16, 8]], across(17, 19, 9), [[19, 7], [20, 7], [21, 7]], across(22, 25, 9),
+      [[26, 7], [27, 7], [28, 7]], across(29, 31, 9), [[32, 8], [33, 8]], across(34, 35, 9), across(36, 37, 6), [[39, 4], [40, 5]], across(42, 43, 5),
+      across(45, 46, 6), across(48, 51, 7), [[53, 8], [54, 8]], across(56, 63, 8), [[66, 7], [67, 7], [68, 7]], [[71, 7], [72, 7], [73, 7]], across(74, 77, 9)),
+    enemies: [
+      walker("eR", 4, 8, 9, 3, 1, 55), walker("eP", 22, 4, 9, 2, 0, 50), walker("eG", 48, 4, 9, 2, 0, 50), walker("eR", 57, 5, 9, 3, 1, 55),
+      walker("eP", 62, 4, 9, 3, 0, 55),
+      flier("hY", 16, 31, 6, 0.6, 70), flier("hR", 36, 52, 5, 0.5, 70), flier("hP", 56, 76, 5, 0.7, 75)
+    ],
+    items: [{ col: 3, row: 8, type: "sword" }, { col: 29, row: 8, type: "shield" }, { col: 47, row: 8, type: "sword" }, { col: 66, row: 8, type: "heart" }],
+    chests: [{ col: 12, row: 9, loot: "gem" }, { col: 69, row: 9, loot: "heart" }],
+    cogs: [[20, 9], [27, 9], [67, 9], [72, 9]], checkpoints: [[34, 9], [55, 9]], key: { col: 39, row: 5 }, goal: [77, 9]
+  };
+}
+
+function bossLevel() {
+  var g = createGrid(36);
+  g.ground(0, 35).platform(3, 6, 8).platform(9, 12, 6).platform(15, 20, 8).platform(23, 26, 6).platform(29, 32, 8);
+  return {
+    name: "Boss Arena", theme: "boss", sky: ["#1a0810", "#400820"], map: g.rows(), start: [1, 9],
+    coins: [].concat(across(4, 6, 6), across(10, 11, 4), across(16, 19, 6), across(24, 25, 4), across(30, 31, 6), across(12, 14, 9)),
+    enemies: [
+      walker("eR", 8, 6, 9, 2, 1, 50), walker("eP", 27, 6, 9, 2, 1, 50),
+      flier("hY", 14, 22, 4, 0.5, 65), flier("hP", 6, 14, 3, 0.5, 65)
+    ],
+    items: [{ col: 10, row: 4, type: "sword" }, { col: 24, row: 4, type: "sword" }, { col: 17, row: 6, type: "sword" }, { col: 4, row: 6, type: "heart" }, { col: 31, row: 6, type: "heart" }],
+    chests: [{ col: 1, row: 9, loot: "heart" }, { col: 34, row: 9, loot: "shield" }],
+    boss: { col: 26, row: 8, hp: 14, speed: 60, damage: 2 }, goal: [34, 9]
+  };
+}
+
+var LEVELS = [forestLevel(), desertLevel(), ruinsLevel(), skyLevel(), castleLevel(), bossLevel()];
+
+// ---------------------------------------------------------------------------
+//  Game state
+// ---------------------------------------------------------------------------
+var game = {
+  time: 0, levelIndex: 0, score: 0, lives: 5, coins: 0, coinTotal: 0,
+  hasSword: true, swordCharges: 3, hasShield: false, hasKey: false,
+  facing: 1, invincible: 0, attackTimer: 0, attackBox: null, springTimer: 0,
+  message: "", messageTimer: 0, checkpoint: { x: 0, y: 0 },
+  fade: 1, fadeTarget: 0, transitioning: false, paused: false, musicOn: false, musicMuted: false, ready: false
+};
+
+var level = null;   // everything about the level that is currently loaded
+var player = null;
+var camera = null;
+
+var PLAYER_W = 38, PLAYER_H = 46;
+
+// ---------------------------------------------------------------------------
+//  Engine setup
+// ---------------------------------------------------------------------------
+prism(VIEW_W, VIEW_H).mode("smooth").quality("master").scaleMode("fit").bg("#070b14").gravity(0, 1500);
+
+prism.loadAll(IMAGE_FILES, function () { game.ready = true; });
+prism.loadSound("jump", "jump.wav");
+prism.loadSound("music", "stage1.mp3");
+
+// Particle emitters are created once and fired on demand.
+function makeEmitter(colors, speed, life, size, gravity) {
+  return prism.emitter({
+    active: false, rate: 0, colors: colors, shape: "circle", gravity: gravity,
+    minSpeed: speed * 0.4, maxSpeed: speed, minLife: life * 0.5, maxLife: life,
+    minSize: size * 0.6, maxSize: size, endSize: 0
+  });
+}
+var sparkles = makeEmitter(["#ffeaa7", "#ffffff", "#f6b93b"], 170, 0.6, 7, 320);
+var puffs    = makeEmitter(["#dfe6e9", "#b2bec3", "#ff7675"], 190, 0.7, 10, 120);
+var dust     = makeEmitter(["#dfe6e9", "#b2bec3"], 80, 0.4, 6, 40);
+var stings   = makeEmitter(["#ff6b6b", "#ff9f43", "#ffffff"], 220, 0.5, 7, 260);
+
+var menuScene = prism.scene("menu");
+var playScene = prism.scene("play");
+var endScene  = prism.scene("end");
+
+// ---------------------------------------------------------------------------
+//  Small utilities
+// ---------------------------------------------------------------------------
+function sfx(frequency, duration) { prism.beep(frequency, duration || 0.08, 0.15, "square"); }
+
+function showMessage(text, seconds) { game.message = text; game.messageTimer = seconds || 1.2; }
+
+// Reports true only on the step where a button goes from released to held.
+var wasHeld = {};
+function pressedNow(name, isHeld) {
+  var before = wasHeld[name];
+  wasHeld[name] = isHeld;
+  return isHeld && !before;
+}
+
+function drawPicture(name, x, y, w, h, flipped) {
+  if (!flipped) { prism.drawImg(name, x, y, w, h); return; }
+  prism.push().translate(x + w, y).scale(-1, 1);
+  prism.drawImg(name, 0, 0, w, h);
+  prism.pop();
+}
+
+function label(text, x, y, size, color, bold) {
+  prism.drawText(text, x, y, { size: size, color: color, bold: bold, align: "center", font: FONT });
+}
+
+// playSound returns an audio element only when the track was really started,
+// so musicOn never claims music is playing while the file is still loading.
+function startMusic() {
+  if (game.musicOn || game.musicMuted) return;
+  var track = prism.playSound("music", { volume: game.paused ? 0.08 : 0.28, loop: true });
+  game.musicOn = track instanceof HTMLAudioElement;
+}
+function stopMusic() { prism.stopSound("music"); game.musicOn = false; }
+
+// ---------------------------------------------------------------------------
+//  Tilemap
+// ---------------------------------------------------------------------------
+function charAt(def, col, row) {
+  if (row < 0 || row >= def.map.length || col < 0 || col >= def.map[0].length) return ".";
+  return def.map[row].charAt(col);
+}
+
+function isSolidCell(col, row) { return prism.isSolid(level.map, level.map.get(col, row)); }
+
+// Moves up until the cell is free, so pickups never spawn inside the ground.
+function freeRow(col, row) {
+  while (row > 0 && isSolidCell(col, row)) row--;
+  return row;
+}
+
+// Glues the individual tile pictures into one tileset sheet for the tilemap.
+function buildTileset(theme) {
+  var sheet = document.createElement("canvas");
+  sheet.width = TILE * 5;
+  sheet.height = TILE;
+  var pen = sheet.getContext("2d");
+  var names = [theme.surface, theme.fill, theme.platform, "spikes", "water"];
+  names.forEach(function (name, index) {
+    var picture = prism.image(name);
+    if (!picture) return;
+    pen.globalAlpha = (index === TILE_WATER) ? 0.85 : 1;
+    pen.drawImage(picture, index * TILE, 0, TILE, TILE);
+  });
+  return sheet;
+}
+
+function buildTilemap(def, theme) {
+  var cols = def.map[0].length, data = [];
+  for (var r = 0; r < ROWS; r++) {
+    var row = [];
+    for (var c = 0; c < cols; c++) {
+      var ch = charAt(def, c, r), tile = -1;
+      if (ch === "#") {
+        if (charAt(def, c, r - 1) === "#") tile = TILE_FILL;
+        else tile = (charAt(def, c, r + 1) === "#") ? TILE_SURFACE : TILE_PLATFORM;
+      } else if (ch === "S") {
+        tile = TILE_SPIKES;
+      } else if (theme.water && r >= ROWS - 2 && charAt(def, c, ROWS - 1) !== "#") {
+        tile = TILE_WATER;
+      }
+      row.push(tile);
+    }
+    data.push(row);
+  }
+  return prism.tilemap(buildTileset(theme), TILE, TILE).tileset(5).solids(SOLID_TILES).grid(data);
+}
+
+// Scenery props and drifting clouds, placed with a seeded random generator.
+function buildScenery(index) {
+  var seed = index * 977 + 13;
+  function random() { seed = (seed * 1103515245 + 12345) & 2147483647; return seed / 2147483647; }
+  function topRow(col) {
+    for (var r = 6; r < ROWS; r++) if (isSolidCell(col, r)) return r;
+    return -1;
+  }
+  var cols = level.map.cols, col = 1;
+  while (col < cols - 3) {
+    var prop = level.theme.props[Math.floor(random() * level.theme.props.length)];
+    var row = topRow(col), span = Math.ceil(prop[1]);
+    var fits = row >= 0 && charAt(level.def, col, row - 1) !== "S";
+    for (var q = 1; q < span && fits; q++) if (topRow(col + q) !== row) fits = false;
+    if (fits) level.props.push({ name: prop[0], x: (col + random() * 0.3) * TILE, y: (row - prop[2]) * TILE, w: prop[1] * TILE, h: prop[2] * TILE });
+    col += 3 + Math.floor(random() * 4);
+  }
+  for (var i = 0; i < cols / 7; i++) {
+    level.clouds.push({ name: i % 2 ? "cloudA" : "cloudB", x: i * 7 * TILE + random() * 120, y: 20 + random() * 140,
+      w: 110 + random() * 70, h: 50 + random() * 30, speed: 6 + random() * 10 });
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Spawning
+// ---------------------------------------------------------------------------
+function spawnPickup(tag, image, x, y, w, h) {
+  var pickup = prism.sprite(image, x, y).size(w, h).tagged(tag).trigger();
+  pickup.data.baseY = y;
+  pickup.data.phase = Math.random() * 6;
+  return pickup;
+}
+
+function spawnWalker(spec) {
+  var row = freeRow(spec.col, spec.row);
+  var enemy = prism.sprite(spec.sprite, spec.col * TILE, row * TILE + 4).size(36, 36)
+    .body({ type: "dynamic", friction: 0.25, restitution: 0, maxSpeed: [130, 800] }).tagged("enemy");
+  enemy.data = {
+    kind: "walker", hp: spec.hp, damage: 1, dir: 1, speed: spec.speed, stun: 0,
+    minX: spec.col * TILE, maxX: (spec.col + spec.width) * TILE - 36,
+    shoots: spec.shoots, cooldown: 1 + Math.random()
+  };
+}
+
+function spawnFlier(spec) {
+  var enemy = prism.sprite(spec.sprite, spec.fromCol * TILE, spec.row * TILE).size(36, 36).tagged("enemy").kinematic();
+  enemy.data = {
+    kind: "flier", hp: 1, damage: 1, dir: 1, speed: spec.speed, stun: 0,
+    minX: spec.fromCol * TILE, maxX: spec.toCol * TILE - 36,
+    baseY: spec.row * TILE, amplitude: spec.amplitude * TILE, phase: Math.random() * 6
+  };
+}
+
+function spawnBoss(spec) {
+  var boss = prism.sprite("eR", spec.col * TILE, spec.row * TILE).size(72, 72)
+    .body({ type: "dynamic", friction: 0.2, restitution: 0, maxSpeed: [100, 900] }).tagged("enemy");
+  boss.data = {
+    kind: "boss", hp: spec.hp, maxHp: spec.hp, damage: spec.damage, dir: 1, speed: spec.speed, stun: 0,
+    cooldown: 2, jumpCooldown: 3
+  };
+  level.boss = boss;
+}
+
+function spawnShot(x, y, size, vx, vy, life) {
+  var shot = prism.sprite("shot", x, y).size(size, size).tagged("shot").trigger().kinematic();
+  shot.vx = vx;
+  shot.vy = vy || 0;
+  shot.data.life = life;
+}
+
+function standingY(row, height) { return row * TILE + TILE - height; }
+
+// ---------------------------------------------------------------------------
+//  Player
+// ---------------------------------------------------------------------------
+function createPlayer() {
+  player = prism.sprite("player", game.checkpoint.x, game.checkpoint.y).size(PLAYER_W, PLAYER_H)
+    .body({ type: "dynamic", friction: 0.18, restitution: 0, maxSpeed: [260, 900] }).tagged("player");
+
+  // Prism fires these handlers whenever player.check() sees a new overlap.
+  player
+    .onEnter("coin", collectCoin)
+    .onEnter("item", collectItem)
+    .onEnter("chest", openChest)
+    .onEnter("key", pickUpKey)
+    .onEnter("checkpoint", activateCheckpoint)
+    .onEnter("spring", bounceOnSpring)
+    .onEnter("cog", hitByCog).onStay("cog", hitByCog)
+    .onEnter("shot", hitByShot)
+    .onEnter("enemy", touchEnemy).onStay("enemy", touchEnemy)
+    .onStay("goal", touchGoal);
+
+  game.facing = 1;
+  camera = prism.camera().follow(player, 0.14, 0.08).dead(100, 60).lead(40, 0).limitTo(level.map).use();
+  camera.snapToTarget();
+}
+
+function placePlayerAtCheckpoint() {
+  prism.moveTo(player, game.checkpoint.x, game.checkpoint.y);
+  player.stop();
+}
+
+function hurt(amount, fromEnemy, respawn) {
+  if (game.invincible > 0) { if (respawn) placePlayerAtCheckpoint(); return; }
+  stings.at(player.centerX(), player.centerY()).explode(12);
+  if (game.hasShield && fromEnemy) {
+    game.hasShield = false;
+    game.invincible = 1;
+    showMessage("Shield broke!", 1);
+    sfx(300, 0.1);
+    return;
+  }
+  game.lives -= amount || 1;
+  game.invincible = 1.4;
+  sfx(160, 0.12);
+  camera.shake(4, 0.15);
+  if (game.lives <= 0) { finishGame(false); return; }
+  showMessage("Lives " + game.lives, 1);
+  if (respawn) placePlayerAtCheckpoint();
+  else { player.vy = -300; player.vx = -game.facing * 160; }
+}
+
+// ----- pickups -----
+function collectCoin(coin) {
+  coin.kill();
+  game.coins++;
+  game.score += 50;
+  sparkles.at(coin.centerX(), coin.centerY()).explode(8);
+  sfx(880, 0.05);
+}
+
+function giveReward(type) {
+  if (type === "sword") { game.hasSword = true; game.swordCharges = 3; showMessage("Sword +3"); }
+  else if (type === "shield") { game.hasShield = true; showMessage("Shield on"); }
+  else if (type === "heart") { game.lives = Math.min(game.lives + 1, 6); showMessage("Life +1"); }
+  else if (type === "gem") { game.score += 200; showMessage("Gem +200"); }
+  sfx(600, 0.1);
+}
+
+function collectItem(item) {
+  item.kill();
+  sparkles.at(item.centerX(), item.centerY()).explode(10);
+  giveReward(item.data.kind);
+}
+
+function openChest(chest) {
+  if (chest.data.opened) return;
+  chest.data.opened = true;
+  game.score += 50;
+  sparkles.at(chest.centerX(), chest.y).explode(14);
+  giveReward(chest.data.loot);
+}
+
+function pickUpKey(key) {
+  key.kill();
+  game.hasKey = true;
+  showMessage("Key found!", 1.5);
+  sfx(900, 0.12);
+}
+
+function activateCheckpoint(flag) {
+  if (flag.data.active) return;
+  prism.group("checkpoint").forEach(function (other) { other.data.active = false; });
+  flag.data.active = true;
+  game.checkpoint = { x: flag.data.spawnX, y: flag.data.spawnY };
+  showMessage("Checkpoint!");
+  sparkles.at(flag.centerX(), flag.y).explode(12);
+  sfx(760, 0.1);
+}
+
+function bounceOnSpring(spring) {
+  if (game.springTimer > 0 || player.vy < -50) return;
+  player.jump(860, false);
+  game.springTimer = 0.35;
+  dust.at(spring.centerX(), spring.bottom()).explode(8);
+  sfx(700, 0.1);
+}
+
+// ----- hazards -----
+function hitByCog() { hurt(1, false, true); }
+
+function hitByShot(shot) {
+  shot.kill();
+  hurt(1, true, false);
+}
+
+function isStomping(enemy) { return player.vy > 60 && player.bottom() - enemy.y < 28; }
+
+function touchEnemy(enemy) {
+  var info = enemy.data;
+  if (info.stun > 0) return;
+  if (isStomping(enemy)) {
+    var isBoss = info.kind === "boss";
+    player.vy = isBoss ? -520 : -430;
+    game.score += isBoss ? 50 : 25;
+    damageEnemy(enemy, 1, isBoss ? 0.5 : 0.4);
+    if (isBoss) camera.shake(5, 0.12);
+    sfx(isBoss ? 300 : 700, 0.07);
+  } else {
+    hurt(info.damage, true, false);
+  }
+}
+
+function damageEnemy(enemy, amount, stunTime) {
+  var info = enemy.data;
+  info.hp -= amount;
+  info.stun = stunTime || 0;
+  if (info.hp <= 0) defeatEnemy(enemy); else sfx(400, 0.05);
+}
+
+function defeatEnemy(enemy) {
+  var isBoss = enemy.data.kind === "boss";
+  puffs.at(enemy.centerX(), enemy.centerY()).explode(isBoss ? 30 : 12);
+  enemy.kill();
+  game.score += isBoss ? 500 : 75;
+  sfx(740, 0.08);
+  if (isBoss) { level.boss = null; showMessage("Boss down!", 2); camera.shake(8, 0.3); }
+}
+
+// ----- sword -----
+function swingSword() {
+  if (!game.hasSword || game.swordCharges <= 0 || game.attackTimer > 0) return;
+  game.swordCharges--;
+  game.attackTimer = 0.28;
+  sfx(520, 0.06);
+  var box = { x: player.x + (game.facing > 0 ? player.w : -44), y: player.y + 4, w: 44, h: 34 };
+  game.attackBox = box;
+  prism.group("enemy").slice().forEach(function (enemy) {
+    if (!prism.collide(box, enemy)) return;
+    if (enemy.data.kind === "boss" && enemy.data.stun > 0) return;
+    damageEnemy(enemy, 1, enemy.data.kind === "boss" ? 0.3 : 0);
+    camera.shake(enemy.data.kind === "boss" ? 5 : 2, 0.1);
+  });
+  if (game.swordCharges <= 0) showMessage("Sword empty!");
+}
+
+// ---------------------------------------------------------------------------
+//  Level flow
+// ---------------------------------------------------------------------------
+function bossIsAlive() { return !!level.boss; }
+
+function touchGoal() {
+  if (game.transitioning) return;
+  if (bossIsAlive()) { if (game.messageTimer <= 0) showMessage("Defeat the boss!", 1); return; }
+  if (level.def.key && !game.hasKey) { if (game.messageTimer <= 0) showMessage("The door is locked. Find the key!", 1.2); return; }
+  completeLevel();
+}
+
+function completeLevel() {
+  game.transitioning = true;
+  game.score += game.coins * 100 + 300;
+  if (game.coins >= game.coinTotal) game.score += 500;
+  sfx(660, 0.1);
+  if (game.levelIndex >= LEVELS.length - 1) { prism.wait(0.3, function () { finishGame(true); }); return; }
+  game.fadeTarget = 1;
+  prism.wait(0.5, function () { buildLevel(game.levelIndex + 1); });
+}
+
+function finishGame(won) {
+  stopMusic();
+  endScene.set("won", won);
+  prism.play("end");
+}
+
+function buildLevel(index) {
+  prism.clearBodies();
+  [sparkles, puffs, dust, stings].forEach(function (emitter) { emitter.clear(); });
+
+  var def = LEVELS[index], theme = THEMES[def.theme];
+  level = { def: def, theme: theme, map: null, props: [], clouds: [], boss: null };
+  level.map = buildTilemap(def, theme);
+  buildScenery(index);
+
+  game.levelIndex = index;
+  game.coins = 0;
+  game.coinTotal = def.coins.length;
+  game.hasKey = false;
+  game.invincible = 1;
+  game.attackTimer = 0;
+  game.attackBox = null;
+  game.springTimer = 0;
+  game.transitioning = false;
+  game.fadeTarget = 0;
+  game.checkpoint = { x: def.start[0] * TILE + 6, y: standingY(def.start[1], PLAYER_H) };
+  showMessage(def.name, 1.8);
+  prism.bg(def.sky[1]);
+
+  def.coins.forEach(function (spot) {
+    spawnPickup("coin", "coin", spot[0] * TILE + 10, freeRow(spot[0], spot[1]) * TILE + 10, 28, 28);
+  });
+  def.items.forEach(function (item) {
+    var image = { sword: "sword", shield: "shield", heart: "heart" }[item.type] || "gem";
+    spawnPickup("item", image, item.col * TILE + 10, freeRow(item.col, item.row) * TILE + 10, 28, 28).data.kind = item.type;
+  });
+  (def.chests || []).forEach(function (chest) {
+    var box = spawnPickup("chest", "chest", chest.col * TILE + 6, freeRow(chest.col, chest.row) * TILE + TILE - 32, 36, 32);
+    box.data.loot = chest.loot;
+    box.data.opened = false;
+  });
+  if (def.key) spawnPickup("key", "key", def.key.col * TILE + 8, def.key.row * TILE + 8, 32, 32);
+
+  (def.checkpoints || []).forEach(function (spot) {
+    var flag = prism.sprite("flag", spot[0] * TILE + 8, spot[1] * TILE + 4).size(32, 44).tagged("checkpoint").trigger();
+    flag.data.active = false;
+    flag.data.spawnX = spot[0] * TILE + 6;
+    flag.data.spawnY = standingY(spot[1], PLAYER_H);
+  });
+  (def.springs || []).forEach(function (spot) {
+    var spring = prism.sprite("spring", spot[0] * TILE + 4, spot[1] * TILE + 8).size(40, 40).tagged("spring").trigger();
+    spring.data.baseY = spring.y;
+  });
+  (def.cogs || []).forEach(function (spot) {
+    prism.circle(spot[0] * TILE + 8, spot[1] * TILE + 8, 16).tagged("cog").trigger();
+  });
+  (def.movers || []).forEach(function (spec) {
+    var platform = prism.rect(spec.col * TILE, spec.row * TILE, spec.width * TILE, TILE).tagged("platform").kinematic();
+    platform.data = { axis: spec.axis, min: spec.min * TILE, max: spec.max * TILE, speed: spec.speed, dir: 1 };
+    if (spec.axis === "x") platform.x = platform.data.min; else platform.y = platform.data.min;
+    prism.moveTo(platform, platform.x, platform.y);
+  });
+
+  def.enemies.forEach(function (spec) { if (spec.kind === "flier") spawnFlier(spec); else spawnWalker(spec); });
+  if (def.boss) spawnBoss(def.boss);
+
+  prism.sprite("door", def.goal[0] * TILE, def.goal[1] * TILE - 8).size(TILE, TILE + 8).tagged("goal").trigger();
+
+  createPlayer();
+}
+
+function startGame() {
+  if (!game.ready) return;
+  game.score = 0;
+  game.lives = 5;
+  game.hasSword = true;
+  game.swordCharges = 3;
+  game.hasShield = false;
+  game.paused = false;
+  game.fade = 1;
+  startMusic();
+  prism.play("play");
+  buildLevel(0);
+}
+
+// ---------------------------------------------------------------------------
+//  Per-frame updates
+// ---------------------------------------------------------------------------
+function updateTimers(dt) {
+  ["invincible", "messageTimer", "springTimer", "attackTimer"].forEach(function (name) {
+    game[name] = Math.max(0, game[name] - dt);
+  });
+  if (game.attackTimer === 0) game.attackBox = null;
+  game.fade = prism.lerp(game.fade, game.fadeTarget, 0.14);
+}
+
+function animateScenery(dt) {
+  level.clouds.forEach(function (cloud) { cloud.x += cloud.speed * dt; });
+  prism.group("coin").concat(prism.group("item"), prism.group("key"), prism.group("chest")).forEach(function (thing) {
+    thing.y = thing.data.baseY + Math.sin(game.time * 3 + thing.data.phase) * 4;
+  });
+  prism.group("spring").forEach(function (spring) { spring.y = spring.data.baseY + Math.sin(game.time * 6) * 3; });
+}
+
+function updatePlatform(platform, dt) {
+  var info = platform.data;
+  if (level.map.hits(platform)) {          // bumped into a wall: turn around
+    platform.x -= platform.vx * dt;
+    platform.y -= platform.vy * dt;
+    info.dir = -info.dir;
+  }
+  var position = info.axis === "x" ? platform.x : platform.y;
+  if (position <= info.min) { position = info.min; info.dir = 1; }
+  else if (position >= info.max) { position = info.max; info.dir = -1; }
+  if (info.axis === "x") { platform.x = position; platform.vx = info.dir * info.speed; platform.vy = 0; }
+  else { platform.y = position; platform.vy = info.dir * info.speed; platform.vx = 0; }
+}
+
+function updateEnemy(enemy, dt) {
+  var info = enemy.data;
+  if (info.stun > 0) info.stun -= dt;
+
+  if (info.kind === "flier") {
+    if (enemy.x <= info.minX) { enemy.x = info.minX; info.dir = 1; }
+    if (enemy.x >= info.maxX) { enemy.x = info.maxX; info.dir = -1; }
+    enemy.velX(info.dir * info.speed);
+    enemy.y = info.baseY + Math.sin(game.time * 2 + info.phase) * info.amplitude;
+    enemy.flip(info.dir < 0);
+    return;
+  }
+
+  enemy.solveGroup("platform");
+  level.map.solve(enemy);
+  if (enemy.y > level.map.worldHeight() + 100) { enemy.kill(); return; }
+
+  if (info.kind === "boss") { updateBoss(enemy, dt); return; }
+
+  if (enemy.grounded) enemy.velX(info.dir * info.speed); else enemy.velX(0);
+  if (enemy.x <= info.minX) { enemy.x = info.minX; info.dir = 1; }
+  if (enemy.x >= info.maxX) { enemy.x = info.maxX; info.dir = -1; }
+  enemy.flip(info.dir < 0);
+
+  if (info.shoots) {
+    info.cooldown -= dt;
+    var near = Math.abs(enemy.x - player.x) < 340 && Math.abs(enemy.y - player.y) < 130;
+    if (info.cooldown <= 0 && near) {
+      info.cooldown = 1.8;
+      spawnShot(enemy.x + 10, enemy.y + 10, 16, (player.x > enemy.x ? 1 : -1) * 190, 0, 2.5);
+      sfx(200, 0.05);
+    }
+  }
+}
+
+function updateBoss(boss, dt) {
+  var info = boss.data;
+  var enraged = info.hp <= info.maxHp / 2;
+  info.dir = player.x > boss.x ? 1 : -1;
+  boss.flip(info.dir < 0);
+  if (boss.grounded) boss.velX(info.dir * info.speed * (enraged ? 1.35 : 1));
+
+  info.jumpCooldown -= dt;
+  if (info.jumpCooldown <= 0 && boss.grounded) {
+    info.jumpCooldown = enraged ? 2 : 3.2;
+    boss.jump(620);
+  }
+
+  info.cooldown -= dt;
+  if (info.cooldown <= 0) {
+    info.cooldown = enraged ? 1 : 1.4;
+    var d = info.dir, cx = boss.x + 30;
+    spawnShot(cx, boss.y + 30, 20, d * 230, 0, 3);
+    spawnShot(cx, boss.y + 20, 16, d * 190, -90, 2.5);
+    if (enraged) spawnShot(cx, boss.y + 40, 16, d * 160, 90, 2.5);
+    sfx(120, 0.1);
+    camera.shake(4, 0.1);
+  }
+}
+
+function updateShot(shot, dt) {
+  shot.data.life -= dt;
+  if (shot.data.life <= 0 || level.map.hits(shot)) shot.kill();
+}
+
+function readTouchPad() {
+  var pressed = { left: false, right: false, jump: false, attack: false, pause: false };
+  if (!prism.isTouch()) return pressed;
+  prism.touches().forEach(function (touch) {
+    Object.keys(TOUCH_BUTTONS).forEach(function (name) {
+      if (prism.inRect(touch.x, touch.y, TOUCH_BUTTONS[name])) pressed[name] = true;
+    });
+  });
+  return pressed;
+}
+
+var TOUCH_BUTTONS = {
+  left:   { x: 20,  y: 436, w: 92,  h: 84, text: "◀", size: 30 },
+  right:  { x: 124, y: 436, w: 92,  h: 84, text: "▶", size: 30 },
+  attack: { x: 690, y: 436, w: 92,  h: 84, text: "⚔", size: 30 },
+  jump:   { x: 794, y: 436, w: 146, h: 84, text: "▲", size: 30 },
+  pause:  { x: 884, y: 12,  w: 64,  h: 52, text: "❚❚", size: 20 }
+};
+
+function setPaused(paused) {
+  game.paused = paused;
+  ["player", "enemy", "shot", "platform"].forEach(function (tag) {
+    prism.group(tag).forEach(function (body) { if (paused) body.freeze(); else body.unfreeze(); });
+  });
+  prism.soundVolume("music", paused ? 0.08 : 0.28);
+}
+
+function updatePlayer(dt, pad) {
+  var move = prism.axisX() + (pad.right ? 1 : 0) - (pad.left ? 1 : 0);
+  move = prism.clamp(move, -1, 1);
+  if (move) game.facing = move > 0 ? 1 : -1;
+  player.velX(move * 200);
+  player.flip(game.facing < 0);
+
+  var jumpHeld = prism.key("Space") || prism.key("ArrowUp") || prism.key("KeyW") || pad.jump;
+  if (pressedNow("jump", jumpHeld)) player.jumpBuffer = 0.12;
+  if (player.jumpBuffer > 0 && player.jump(580)) {
+    prism.playSound("jump", { volume: 0.45 });
+    dust.at(player.centerX(), player.bottom()).explode(5);
+  }
+  if (!jumpHeld && player.vy < -220) player.vy *= 0.6;   // release early = shorter hop
+
+  var attackHeld = prism.key("KeyJ") || prism.key("KeyK") || pad.attack;
+  if (pressedNow("attack", attackHeld)) swingSword();
+
+  // Solid ground, moving platforms and the outer edges of the world.
+  var contacts = player.solveGroup("platform");
+  (contacts || []).forEach(function (contact) {
+    if (contact.side === "bottom") {
+      player.x += contact.target.vx * dt;
+      player.y += contact.target.vy * dt;
+    }
+  });
+  level.map.solve(player);
+  player.x = prism.clamp(player.x, 0, level.map.worldWidth() - player.w);
+
+  if (player.grounded && !player.wasGrounded) dust.at(player.centerX(), player.bottom()).explode(5);
+}
+
+function checkTerrainHazards() {
+  var col = Math.floor(player.centerX() / TILE);
+  var row = Math.floor((player.bottom() - 6) / TILE);
+  if (level.map.get(col, row) === TILE_SPIKES && player.bottom() > row * TILE + 26) hurt(1, false, true);
+  var deathLine = level.theme.water ? (ROWS - 1) * TILE : ROWS * TILE + 60;
+  if (player.y > deathLine) hurt(1, false, true);
+}
+
+playScene.on("update", function (dt) {
+  game.time += dt;
+  if (!level || !player) return;
+
+  var pad = readTouchPad();
+  if (pressedNow("pause", prism.key("KeyP") || prism.key("Escape") || pad.pause)) setPaused(!game.paused);
+  if (pressedNow("mute", prism.key("KeyM"))) {
+    game.musicMuted = !game.musicMuted;
+    if (game.musicMuted) stopMusic(); else startMusic();
+  }
+  if (pressedNow("restart", prism.key("KeyR")) && !game.paused) buildLevel(game.levelIndex);
+  if (game.paused) return;
+
+  updateTimers(dt);
+  animateScenery(dt);
+  prism.group("platform").forEach(function (platform) { updatePlatform(platform, dt); });
+  updatePlayer(dt, pad);
+  prism.group("enemy").slice().forEach(function (enemy) { updateEnemy(enemy, dt); });
+  prism.group("shot").slice().forEach(function (shot) { updateShot(shot, dt); });
+
+  checkTerrainHazards();
+  player.check();   // fires every onEnter / onStay handler registered above
+});
+
+playScene.on("enter", function () {
+  wasHeld.pause = prism.key("KeyP") || prism.key("Escape");
+  wasHeld.restart = prism.key("KeyR");
+  wasHeld.jump = true;
+  wasHeld.attack = true;
+});
+
+window.addEventListener("blur", function () {
+  if (prism.current() === playScene && !game.paused && player) setPaused(true);
+});
+
+// ---------------------------------------------------------------------------
+//  Drawing
+// ---------------------------------------------------------------------------
+function drawSky() {
+  prism.drawGradRect(0, 0, VIEW_W, VIEW_H, level.def.sky[0], level.def.sky[1], true);
+  var span = VIEW_W + 300;
+  level.clouds.forEach(function (cloud) {
+    var x = (((cloud.x - camera.x * 0.35) % span) + span) % span - 150;
+    prism.drawImg(cloud.name, x, cloud.y, cloud.w, cloud.h);
+  });
+}
+
+function drawGroup(tag) { prism.group(tag).forEach(function (thing) { thing.draw(); }); }
+
+function drawWorld() {
+  level.props.forEach(function (prop) { prism.drawImg(prop.name, prop.x, prop.y, prop.w, prop.h); });
+  level.map.draw(camera);
+
+  prism.group("platform").forEach(function (platform) {
+    for (var i = 0; i < Math.round(platform.w / TILE); i++) prism.drawImg(level.theme.platform, platform.x + i * TILE, platform.y, TILE + 1, TILE + 1);
+  });
+  drawGroup("spring");
+
+  prism.group("cog").forEach(function (cog) {
+    prism.push().translate(cog.x + cog.radius, cog.y + cog.radius).rotate(game.time * 3);
+    prism.drawImg("cog", -22, -22, 44, 44);
+    prism.pop();
+  });
+
+  prism.group("checkpoint").forEach(function (flag) {
+    prism.alpha(flag.data.active ? 1 : 0.45);
+    flag.draw();
+    prism.alpha(1);
+  });
+  drawGroup("coin");
+  drawGroup("item");
+  drawGroup("key");
+  prism.group("chest").forEach(function (chest) {
+    prism.alpha(chest.data.opened ? 0.45 : 1);
+    chest.draw();
+    prism.alpha(1);
+  });
+
+  prism.group("enemy").forEach(function (enemy) {
+    prism.alpha(enemy.data.stun > 0 ? 0.55 : 1);
+    enemy.draw();
+    prism.alpha(1);
+  });
+  if (level.boss) {
+    var boss = level.boss, ratio = boss.data.hp / boss.data.maxHp;
+    prism.drawRect(boss.x, boss.y - 14, boss.w, 8, "#000");
+    prism.drawRect(boss.x, boss.y - 14, boss.w * ratio, 8, "#e74c3c");
+  }
+  drawGroup("shot");
+
+  var locked = (level.def.key && !game.hasKey) || bossIsAlive();
+  prism.group("goal").forEach(function (door) {
+    prism.alpha(locked ? 0.55 : 1);
+    door.draw();
+    prism.drawImg("flag", door.x + 6, door.y - 32, 28, 32);
+    prism.alpha(1);
+  });
+
+  if (game.attackBox) prism.drawImg("blast", game.attackBox.x, game.attackBox.y, game.attackBox.w, game.attackBox.h);
+
+  var blinking = game.invincible > 0 && Math.floor(game.invincible * 12) % 2 === 0;
+  player.image = game.invincible > 0.85 ? "hurt" : (game.lives <= 1 ? "low" : "player");
+  prism.alpha(blinking ? 0.35 : 1);
+  player.draw();
+  prism.alpha(1);
+  var px = prism.renderX(player), py = prism.renderY(player), faceLeft = game.facing < 0;
+  if (game.hasSword && game.swordCharges > 0) drawPicture("sword", faceLeft ? px - 16 : px + player.w - 6, py + 12, 22, 22, faceLeft);
+  if (game.hasShield) prism.drawImg("shield", faceLeft ? px + player.w - 8 : px - 10, py + 16, 18, 18);
+
+  prism.drawParticles();
+}
+
+function drawHud() {
+  prism.drawRound(12, 10, 340, 116, 12, "rgba(0,0,0,.55)");
+  var left = { size: 16, color: "#fff", bold: true, font: FONT };
+  prism.drawText((game.levelIndex + 1) + "/" + LEVELS.length + "  " + level.def.name, 24, 20, left);
+  prism.drawText("Coins " + game.coins + "/" + game.coinTotal + "   Score " + game.score, 24, 44, { size: 14, color: "#fff", font: FONT });
+  for (var i = 0; i < game.lives; i++) prism.drawImg("heart", 24 + i * 24, 64, 20, 20);
+  for (var s = 0; s < game.swordCharges; s++) prism.drawImg("sword", 24 + s * 26, 92, 22, 22);
+  if (game.hasShield) prism.drawImg("shield", 112, 92, 22, 22);
+  if (game.hasKey) prism.drawImg("key", 142, 92, 22, 22);
+
+  if (game.messageTimer > 0) {
+    prism.drawRound(VIEW_W / 2 - 170, 125, 340, 40, 10, "rgba(0,0,0,.55)");
+    label(game.message, VIEW_W / 2, 135, 17, "#ffeaa7", true);
+  }
+
+  if (prism.isTouch()) {
+    var pad = readTouchPad();
+    Object.keys(TOUCH_BUTTONS).forEach(function (name) {
+      var button = TOUCH_BUTTONS[name];
+      prism.drawRound(button.x, button.y, button.w, button.h, 16, pad[name] ? "rgba(255,255,255,.45)" : "rgba(255,255,255,.2)");
+      label(button.text, button.x + button.w / 2, button.y + button.h / 2 - button.size * 0.6, button.size, "#fff", true);
+    });
+  }
+}
+
+playScene.on("draw", function () {
+  if (!level || !player) return;
+  drawSky();
+  camera.scope(drawWorld);
+  drawHud();
+
+  if (game.paused) {
+    prism.drawRect(0, 0, VIEW_W, VIEW_H, "rgba(0,0,0,.6)");
+    label("Paused", VIEW_W / 2, VIEW_H / 2 - 30, 44, "#fff", true);
+    label(prism.isTouch() ? "Tap ❚❚ to continue" : "Press P to continue", VIEW_W / 2, VIEW_H / 2 + 26, 18, "#ffeaa7");
+  }
+  if (game.fade > 0.01) {
+    prism.alpha(game.fade);
+    prism.drawRect(0, 0, VIEW_W, VIEW_H, "#000");
+    prism.alpha(1);
+  }
+});
+
+// ---------------------------------------------------------------------------
+//  Menu and ending screens
+// ---------------------------------------------------------------------------
+function confirmPressed() {
+  var held = prism.key("Enter") || prism.key("Space") || prism.mouse.down();
+  return pressedNow("confirm", held);
+}
+
+menuScene.on("update", function (dt) {
+  game.time += dt;
+  if (confirmPressed()) startGame();
+});
+
+menuScene.on("draw", function () {
+  prism.drawGradRect(0, 0, VIEW_W, VIEW_H, "#070b14", "#1b2b52", true);
+  if (game.ready) {
+    var bob = Math.sin(game.time * 3) * 6;
+    prism.drawImg("cloudA", 70 + Math.sin(game.time * 0.5) * 20, 50, 140, 70);
+    prism.drawImg("cloudB", 700 - Math.sin(game.time * 0.4) * 20, 80, 150, 70);
+    prism.drawImg("tree", 30, 280, 120, 180);
+    prism.drawImg("treeL", 820, 250, 140, 200);
+    prism.drawImg("player", VIEW_W / 2 - 42, 120 + bob, 84, 84);
+    prism.drawImg("eG", VIEW_W / 2 - 130, 220, 44, 44);
+    prism.drawImg("eR", VIEW_W / 2 + 90, 220, 44, 44);
+    prism.drawImg("coin", VIEW_W / 2 - 20, 220 - bob, 40, 40);
+  }
+  label("Coin Adventure", VIEW_W / 2, 280, 42, "#fff", true);
+  label(game.ready ? "6 stages · keys · checkpoints · springs · boss" : "Loading...", VIEW_W / 2, 330, 16, "#9db7ff");
+  if (game.ready) {
+    prism.alpha(0.65 + Math.sin(game.time * 4) * 0.35);
+    label(prism.isTouch() ? "Tap to play" : "ENTER or click to play", VIEW_W / 2, 385, 22, "#ffeaa7");
+    prism.alpha(1);
+  }
+  label("Arrows / WASD move · Space jump · J / K attack · P pause · M music · R restart", VIEW_W / 2, 436, 14, "#7a8aad");
+  label("Created with Prism2D.js", VIEW_W / 2, 468, 13, "#5a6a8a");
+});
+
+endScene.on("enter", function () { wasHeld.confirm = true; });
+
+endScene.on("update", function (dt) {
+  game.time += dt;
+  if (confirmPressed()) prism.play("menu");
+});
+
+endScene.on("draw", function () {
+  var won = endScene.get("won");
+  prism.drawGradRect(0, 0, VIEW_W, VIEW_H, "#05070d", won ? "#12302a" : "#2a1216", true);
+  label(won ? "You win!" : "Game Over", VIEW_W / 2, VIEW_H / 2 - 50, 48, won ? "#7bed9f" : "#ff6b6b", true);
+  label("Score: " + game.score, VIEW_W / 2, VIEW_H / 2 + 14, 22, "#fff");
+  label("ENTER / click — menu", VIEW_W / 2, VIEW_H / 2 + 56, 16, "#ffeaa7");
+  label("Created with Prism2D.js", VIEW_W / 2, VIEW_H / 2 + 92, 13, "#5a6a8a");
+});
+
+// ---------------------------------------------------------------------------
+//  Go!
+// ---------------------------------------------------------------------------
+prism.play("menu");
+prism.loop({});
+</script>
+</body>
+</html>
