@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="docs/assets/prism2d-cover.png" alt="Prism2D.js Cover" width="100%">
+</p>
+
+<h1 align="center">Prism2D.js</h1>
 # Prism2D.js
 
 <p align="center">
