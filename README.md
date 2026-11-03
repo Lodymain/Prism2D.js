@@ -3,7 +3,6 @@
 </p>
 
 <h1 align="center">Prism2D.js</h1>
-# Prism2D.js
 
 <p align="center">
   <strong>A 2D game engine for the browser.</strong>
