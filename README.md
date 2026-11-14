@@ -7,13 +7,14 @@
 <p align="center">
   <strong>A 2D game engine for the browser.</strong>
   <br>
-  Zero boilerplate. Full control. One file. No dependencies.
+  One file, no dependencies, and very little boilerplate.
 </p>
 
 <p align="center">
+  <a href="#whats-new-in-152-beta">What's New</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#installation">Installation</a> ·
-  <a href="#your-first-game">Your First Game</a> ·
+  <a href="#your-first-game--a-complete-tutorial">Your First Game</a> ·
   <a href="#documentation">Documentation</a> ·
   <a href="#examples">Examples</a> ·
   <a href="#api-reference">API Reference</a> ·
@@ -24,65 +25,209 @@
 
 | | |
 |---|---|
-| **Version** | 1.1.0 |
+| **Stable version** | 1.1.0 |
+| **Beta version** | 1.5.2 (work in progress) |
 | **License** | MIT |
-| **Started** | December 06, 2024 |
-| **Released** | September 13, 2026 |
+| **Development started** | December 06, 2024 |
+| **First public release** | September 13, 2026 |
 | **Engine** | HTML5 Canvas 2D + JavaScript |
 | **Dependencies** | None |
 
 <br>
 
-## The Team Behind Prism2D
+> **About the version numbers:** 1.1.0 is **not** the first version of Prism2D. The project has been in development since December 2024, and there were earlier versions before 1.1.0. It's just the latest *stable* release, and 1.5.2 is the beta that comes after it.
 
-Prism2D exists thanks to a small group of people who genuinely love building things.
-
-| **Creator & Lead** | `Lodymain` |
-
-**Contributors who help make this engine better every day:**
-
-| | |
-|---|---|
-| **@Lodymain** | Core engine, physics, rendering |
-| **@ByteLands** | Testing, documentation, bug reports |
-| **@kavdemo** | Examples, community support |
-
-Want your name on this list? Jump into our Discord and start contributing. We'd love to have you.
+> **⚠️ Heads up: 1.5.2 is a BETA.**
+> It isn't finished yet. Some features are still being tested, a few things may change before the final release, and you might run into bugs. If you're making something you plan to ship, stick with **1.1.0** for now. If you want to try the new stuff and tell us what breaks, the beta is yours to play with.
 
 <br>
 
-## What's Next
+## What's New in 1.5.2 (Beta)
 
-The next planned release is **1.5.2**, which will introduce new systems and features. More details will come when we're closer to release. For now, 1.1.0 is stable, battle-tested, and ready for your games.
+Version 1.5.2 is the biggest update so far. The core engine you already know (objects, physics, camera, tilemaps, particles, audio) is still there and works the same way. On top of it, we added a built-in UI system and a pile of small tools that we kept wishing we had while making games.
+
+Compared to **1.1.0**, the bundled file went from about 2,600 lines to about 3,600, and nothing from 1.1.0 was removed.
+
+### A built-in UI system
+
+You can now build menus, HUDs and dialogs without drawing everything by hand. `prism.ui` gives you labels, buttons, panels, bars, sliders, toggles, text inputs and images, plus layouts, dialogs, toasts and themes.
+
+```javascript
+prism.ui.setTheme("retro");   // "dark", "light" or "retro"
+
+var panel = prism.ui.panel({ anchor: "center", layout: "v", align: "center", title: "Paused" });
+
+prism.ui.button("Resume", { parent: panel }, function () {
+  prism.resume();
+});
+
+prism.ui.toast("Game saved!", 2);
+
+prism.ui.confirm("Quit to menu?", function () { /* yes */ }, function () { /* no */ });
+```
+
+### Tweens and easing
+
+Animate almost any number on any object, with 11 easing functions built in.
+
+```javascript
+prism.tween(player, { x: 400, y: 120 }, 0.8, {
+  ease: "backOut",
+  delay: 0.2,
+  yoyo: true,
+  loop: 2,
+  onDone: function () { console.log("done"); }
+});
+```
+
+Available easings: `linear`, `quadIn`, `quadOut`, `quadInOut`, `cubicIn`, `cubicOut`, `cubicInOut`, `sineInOut`, `backOut`, `elasticOut`, `bounceOut`. You can also pass your own function. Use `prism.killTweens()` to stop them.
+
+### Timers
+
+```javascript
+prism.after(2, function () { console.log("two seconds later"); });
+
+var id = prism.every(0.5, function () { spawnEnemy(); }, 10);  // every half second, 10 times
+
+prism.cancel(id);
+prism.cancelAll();
+```
+
+### Pause, time control and settings
+
+```javascript
+prism.pause();
+prism.resume();
+prism.togglePause();
+prism.isPaused();
+
+prism.timeScale(0.3);   // slow motion
+prism.fps(30);          // change the update rate
+prism.volume(0.5);      // master volume
+
+prism.config({ width: 640, height: 360, mode: "pixel", fps: 60, gravity: { x: 0, y: 1200 } });
+```
+
+### Action bindings and gamepad support
+
+Map several inputs to one named action: keyboard, mouse and gamepad buttons all work together.
+
+```javascript
+prism.bind("jump", ["Space", "KeyW", "pad:0"]);
+prism.bind("shoot", ["mouse", "pad:2"]);
+
+if (prism.actionHit("jump")) player.jump(450);
+if (prism.action("shoot")) fire();
+if (prism.actionUp("shoot")) stopFiring();
+```
+
+Gamepads can also be read directly:
+
+```javascript
+if (prism.pad.connected()) {
+  var x = prism.pad.axis(0);
+  if (prism.pad.hit(0)) player.jump(450);
+}
+```
+
+### Object pools
+
+Reuse bullets, particles and enemies instead of creating and throwing them away.
+
+```javascript
+var bullets = prism.pool(
+  function () { return prism.circle(0, 0, 3).color("#ffeaa7"); },
+  function (b, x, y) { b.at(x, y); }
+);
+
+var b = bullets.get(player.x, player.y);
+bullets.release(b);
+bullets.each(function (b) { b.draw(); });
+```
+
+### Seeded random and math helpers
+
+```javascript
+prism.seed(1234);              // same seed = same results every time
+prism.random();                // 0 to 1
+prism.chance(0.25);            // true 25% of the time
+prism.pick(["a", "b", "c"]);
+prism.shuffle(deck);
+
+prism.map(v, 0, 100, 0, 1);    // remap a value between ranges
+prism.approach(speed, 0, 5);   // move toward a target without overshooting
+prism.wrap(angle, 0, 360);
+```
+
+### Saving data
+
+`prism.store` saves to `localStorage` when it's available and falls back to memory when it isn't.
+
+```javascript
+prism.store.set("highscore", 4200);
+var best = prism.store.get("highscore", 0);
+prism.store.remove("highscore");
+```
+
+### Plugins and events
+
+```javascript
+prism.use({
+  name: "myPlugin",
+  install: function (p, opts) {
+    p.extend("hello", function () { console.log("hi"); });
+  }
+});
+
+prism.has("myPlugin");   // true
+
+prism.emit("boss-dead", { id: 3 });
+prism.once("boss-dead", function (info) { });
+```
+
+### Debug tools and extras
+
+```javascript
+prism.debug(true);                 // FPS counter
+prism.debug({ boxes: true });      // also draw collision boxes
+prism.screenshot();                // returns a PNG data URL
+prism.fullscreen();                // toggle fullscreen
+```
+
+### What's still missing
+
+This is a beta, so some things are not where we want them yet:
+
+- The new features above are still being tested and their names or options might change before the final release.
+- The documentation for the new features is short. The full tutorial and API Reference below are still written for 1.1.0.
+- There's no `npm` package yet.
+
+If something doesn't work the way you expected, that's useful for us to know. Tell us on Discord.
 
 <br>
 
-## Commercial Use — Yes, Really
+## Commercial Use
 
-Make money with Prism2D. Seriously. Sell your games, launch them on Steam, publish them on itch.io, put them on mobile stores, use them in client projects. There are no royalties, no revenue cuts, no license fees, no "contact us for commercial use" nonsense. 
+You can make money with Prism2D. Sell your games, put them on Steam or itch.io, publish them on mobile stores, use the engine in client work. There are no royalties, no revenue share and no license fees, and you don't need to ask us for permission.
 
-MIT license means you own what you build. Period.
+It's MIT licensed, so what you build is yours.
 
 <br>
 
 ## Join the Community
 
-Prism2D is more than just an engine — it's a growing community of developers who share a passion for building 2D games with pure JavaScript.
+Prism2D is a small project, and a lot of what's in it came from people telling us what they needed. The Discord server is where that happens: people ask for help, share what they're working on, track down bugs together and swap ideas.
 
-Behind the code there are real people helping each other out, sharing ideas, fixing bugs together, and showing off cool stuff they've built. That's where our Discord server comes in.
+It doesn't matter if you've been writing JavaScript for years or if this is your first game. You're welcome there.
 
-Whether you've been writing JavaScript for years, you're just starting your first game, or you're simply curious about how a 2D engine works under the hood — you're welcome here.
+**What you'll find on the Discord:**
 
-**What you can do on our Discord:**
+- Answers to your questions from actual people
+- A place to show your games and get feedback
+- Bug reports and feature ideas
+- Other people to talk game dev with, or to team up with
 
-- Ask questions and get real answers from real humans
-- Share your games and get feedback  
-- Report bugs and suggest features
-- Help others when you can
-- Chat about game development in general
-- Find collaborators for your projects
-
-We're still growing, and every voice matters. Every bug report, every suggestion, every "hey, this would be cool" helps shape where Prism2D goes next.
+Every bug report and every "it'd be cool if..." has shaped where the engine is today, and that matters even more during the beta.
 
 **[→ Join the Prism2D Discord](https://discord.gg/Zgj6Nk4tg)**
 
@@ -90,46 +235,57 @@ We're still growing, and every voice matters. Every bug report, every suggestion
 
 ## Installation
 
-Pick whichever option fits your workflow. All three give you the same engine.
+Pick whichever option fits how you like to work. They all give you the same engine.
 
 ### Option 1: CDN (Fastest Way to Start)
 
-Drop this one line into your HTML and you're done:
+Pick the version you want and add one line to your HTML. There's nothing to install and nothing to configure.
+
+**Stable: 1.1.0 (recommended for real projects)**
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.1.0/build/prism2d.min.js"></script>
 ```
 
-This loads the **minified** build (`prism2d.min.js`) directly from a CDN. It's smaller, faster to download, and perfect for production. No installation, no build tools, nothing to configure.
-
-Want the readable, unminified version for debugging? Use this instead:
+**Beta: 1.5.2 (for people who want to try the new stuff)**
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.5.2/build/prism2d.min.js"></script>
 ```
+
+> The beta isn't finished. Things can break or change before the final release, so don't ship a game on it yet. See [What's New](#whats-new-in-152-beta) for what's in it.
+
+Both links load the **minified** build (`prism2d.min.js`), which is smaller and faster to download. If you'd rather have the readable, unminified file for debugging, drop the `.min` from the name:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.1.0/build/prism2d.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.5.2/build/prism2d.js"></script>
+```
+
+Pinning the version number in the URL means your game won't change by surprise when we release something new.
 
 ### Option 2: Direct Download
 
-Head over to the [Releases page](https://github.com/Lodymain/Prism2D.js/releases) and grab `prism2d.min.js` (or `prism2d.js` if you want it unminified). Drop it next to your HTML file and include it:
+Go to the [Releases page](https://github.com/Lodymain/Prism2D.js/releases) and download `prism2d.min.js` (or `prism2d.js` if you want it unminified). Put it next to your HTML file and include it:
 
 ```html
 <script src="prism2d.min.js"></script>
 <script src="game.js"></script>
 ```
 
-That's it. No build step, no bundler, no npm. Just a file and a game.
+No build step, no bundler, no npm. Just a file and your game.
 
 ### Option 3: npm (Coming Soon)
 
-We're working on it.
+Not available yet, but we're working on it.
 
 ```
 npm install prism2d
 ```
 
-### Option 4: Source Files (For Contributors)
+### Option 4: Source Files
 
-If you want to peek inside the engine, modify it, or contribute back, clone the repo and include the source files in this order:
+If you want to look inside the engine, change it, or contribute, clone the repo and include the source files in this order (this is the 1.1.0 layout):
 
 ```html
 <script src="src/index.js"></script>
@@ -148,13 +304,13 @@ If you want to peek inside the engine, modify it, or contribute back, clone the 
 <script src="src/audio/audio.js"></script>
 ```
 
-The order matters because each file builds on top of what came before.
+The order matters because each file builds on the ones before it. The 1.5.2 beta currently comes as a single bundled file, `prism2d.js`.
 
 <br>
 
 ## Quick Start
 
-Here's the shortest Prism2D program that actually does something. Save this as `index.html` and open it in any browser:
+Here's the shortest Prism2D program that does something. Save it as `index.html` and open it in any browser:
 
 ```html
 <!DOCTYPE html>
@@ -166,7 +322,7 @@ Here's the shortest Prism2D program that actually does something. Save this as `
 </head>
 <body>
 
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.1.0/build/prism2d.min.js"></script>
 <script>
 
 prism(400, 300).bg("#222");
@@ -190,15 +346,15 @@ prism.loop({
 </html>
 ```
 
-Open the file. You should see a yellow square. Use the arrow keys to move it. Congratulations — you just built a game.
+Open the file and you'll see a yellow square. Move it with the arrow keys. That's a game.
 
 <br>
 
 ## Your First Game — A Complete Tutorial
 
-Let's build something real together. By the end of this tutorial, you'll have made a small platformer with a jumping player, platforms to land on, collectible coins, particle effects when you grab them, and a camera that follows the action. It's going to be about 60 lines of code total.
+Let's build something real. By the end you'll have a small platformer with a jumping player, platforms, coins to collect, particles when you grab them, and a camera that follows you around. It's roughly 60 lines of code.
 
-Ready? Let's go.
+This tutorial is written for **1.1.0**, but everything in it works the same in the 1.5.2 beta.
 
 ### Step 1 — Set Up the Canvas
 
@@ -214,7 +370,7 @@ Start with the basic HTML structure and load the engine:
 </head>
 <body>
 
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.1.0/build/prism2d.min.js"></script>
 <script>
 
 prism(800, 450)
@@ -236,7 +392,7 @@ What's happening here:
 - `.quality("master")` uses high-DPI rendering for crispness on retina screens
 - `.gravity(0, 1400)` sets gravity (horizontal 0, vertical 1400 pixels/sec²)
 
-Methods chain. That's going to be a theme.
+Methods chain, and you'll see that a lot.
 
 ### Step 2 — Add a Player
 
@@ -258,7 +414,7 @@ Breaking this down:
 - `.body({...})` turns it into a physics object (we'll explain `type: "dynamic"` later)
 - `.tagged("player")` labels it so other systems can find it
 
-The `body()` method accepts a configuration object. This is the modern API in version 1.1.0. The old chained style still works perfectly if you prefer it — more on that in the physics section.
+`body()` takes a configuration object. That's the newer style from 1.1.0. The older chained style still works if you prefer it, and the physics section covers both.
 
 ### Step 3 — Build Some Platforms
 
@@ -276,7 +432,7 @@ var platforms = [
 ];
 ```
 
-Nothing fancy here — just rectangles tagged as `"solid"` so the player can collide with them. The ground is extra wide because our level will scroll horizontally.
+Nothing special here, just rectangles tagged as `"solid"` so the player can collide with them. The ground is extra wide because the level scrolls sideways.
 
 ### Step 4 — Sprinkle in Some Coins
 
@@ -299,7 +455,7 @@ for (var i = 0; i < coinPositions.length; i++) {
 }
 ```
 
-The `.trigger()` call makes each coin a sensor — the player can overlap them without being pushed back. We'll detect collection manually in a moment.
+`.trigger()` turns each coin into a sensor, so the player can overlap it without bouncing off. We'll check for pickups ourselves in a moment.
 
 ### Step 5 — Add Particle Effects for Coin Collection
 
@@ -318,7 +474,7 @@ var coinFx = prism.emitter({
 });
 ```
 
-This emitter won't emit anything on its own (`rate: 0`). We'll trigger bursts manually when a coin is grabbed.
+With `rate: 0` this emitter doesn't do anything by itself. We'll fire a burst whenever a coin is picked up.
 
 ### Step 6 — Set Up the Camera
 
@@ -339,7 +495,7 @@ What this does:
 
 ### Step 7 — The Game Loop
 
-Here's where everything comes alive:
+Now we put it all together:
 
 ```javascript
 prism.loop({
@@ -406,13 +562,13 @@ What's going on in `draw`:
 - `cam.scope(fn)` runs the drawing code with camera transforms applied. Everything inside moves with the camera.
 - UI (score, instructions) is drawn **outside** the scope so it stays fixed on screen
 
-That's it. You just built a complete platformer. Save the file, open it, and play.
+That's a full platformer. Save the file, open it and play.
 
 <br>
 
 ## Documentation
 
-This section walks through every feature in Prism2D. Read it top to bottom and you'll know pretty much everything the engine can do.
+This section covers the features of the stable 1.1.0 engine. Read it top to bottom and you'll know most of what Prism2D can do. The newer 1.5.2 additions are in [What's New](#whats-new-in-152-beta).
 
 ### Initializing the Engine
 
@@ -444,7 +600,7 @@ prism.init({
 });
 ```
 
-After init, `prism.canvas` and `prism.ctx` are available. Feel free to use the raw Canvas API whenever you need something the engine doesn't provide — Prism2D never hides it from you.
+After init, `prism.canvas` and `prism.ctx` are available. If you need something the engine doesn't offer, use the raw Canvas API directly. Prism2D doesn't hide it from you.
 
 ### Rendering Modes
 
@@ -590,7 +746,7 @@ var width = prism.measureText("Hello", 24, "Arial");
 
 ### Loading Custom Fonts
 
-New in 1.1.0: load fonts from local files or any URL and use them in your text.
+Since 1.1.0 you can load fonts from local files or any URL and use them in your text.
 
 ```javascript
 prism.loadFont("Pixel", "assets/pixel.ttf");
@@ -616,7 +772,7 @@ prism.blend("source-over");
 
 ### Game Objects
 
-Game objects are just plain JavaScript objects. No classes, no prototypes, nothing hidden:
+Game objects are plain JavaScript objects. No classes and no prototypes:
 
 ```javascript
 var player = prism.rect(100, 200, 24, 32);
@@ -711,7 +867,7 @@ var arrived = obj.moveToward(tx, ty, 3);
 
 ### Physics — Two APIs, Same Power
 
-Version 1.1.0 introduces a modern configuration-object API alongside the classic chained API. Both work, both are fully supported, and you can mix them freely.
+Since 1.1.0 there are two ways to set up physics: a configuration object and the classic chained style. Both are fully supported and you can mix them.
 
 **Modern API (recommended for new projects):**
 
@@ -768,7 +924,7 @@ obj.gscale(2);    // double gravity
 var didJump = player.jump(430);
 ```
 
-Jump only works if the player is grounded or within coyote time (a 0.1s grace period after walking off a ledge). This is automatic and makes platformer controls feel way more responsive.
+A jump only happens if the player is on the ground or within coyote time (a 0.1s grace period after walking off a ledge). That's automatic, and it makes platformer controls feel a lot better.
 
 Returns `true` if it jumped, `false` if blocked.
 
@@ -1043,7 +1199,7 @@ prism.lerp(a, b, 0.5)
 </head>
 <body>
 
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.1.0/build/prism2d.min.js"></script>
 <script>
 
 prism(640, 360).mode("pixel").quality("master").bg("#1a1a2e").gravity(0, 1400);
@@ -1137,7 +1293,7 @@ prism.loop({
 </head>
 <body>
 
-<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@main/build/prism2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Lodymain/Prism2D.js@1.1.0/build/prism2d.min.js"></script>
 <script>
 
 prism(640, 480).mode("pixel").quality("master").bg("#2d3436");
@@ -1428,9 +1584,9 @@ Prism2D runs on any browser with HTML5 Canvas 2D and requestAnimationFrame suppo
 
 ## Contributing
 
-Prism2D is open source and we love getting help from the community. Whether it's fixing a typo in the docs, reporting a bug, or shipping a whole new feature — all contributions matter.
+Prism2D is open source and help is welcome, whether that's fixing a typo, reporting a bug or adding a feature.
 
-If you want to dive in, we have a dedicated **CONTRIBUTING.md** file in the repository that walks you through everything you need to know: how to set up the project locally, our code style, how to test your changes, and how to open a pull request that gets merged quickly.
+The repository has a **CONTRIBUTING.md** that explains how to set the project up locally, the code style, how to test your changes and how to open a pull request.
 
 The short version:
 
@@ -1438,32 +1594,34 @@ The short version:
 2. Create a feature branch
 3. Make your changes in the `src/` files
 4. Test by opening the HTML test file in a browser
-5. Submit a pull request explaining what you changed and why
+5. Open a pull request explaining what you changed and why
 
 **Code style basics:**
 
 - No classes, no `new`, factory functions only
-- Fluent chaining on every method
-- No external dependencies, ever
+- Every method returns the object so calls can chain
+- No external dependencies
 - No comments in the engine source code
 
-Have an idea but not sure if it fits? Come chat on Discord before writing any code. We'd rather talk it through than see you waste time on something that won't be merged.
+If you have an idea and aren't sure it fits, ask on Discord first. It's easier to talk it through than to find out after the work is done that it won't be merged.
 
 <br>
 
 ## License
 
-MIT License. Use Prism2D for anything — commercial projects, personal games, prototypes, teaching materials, whatever you want. No restrictions, no royalties, no strings attached.
+MIT License. Use Prism2D for anything: commercial projects, personal games, prototypes, teaching. No restrictions and no royalties.
 
 <br>
 
 <p align="center">
-  <strong>Prism2D version 1.1.0</strong>
+  <strong>Prism2D</strong>
   <br>
-  Development started December 06, 2024
+  Stable 1.1.0 · Beta 1.5.2
   <br>
-  First public release September 13, 2026
+  In development since December 06, 2024
+  <br>
+  First public release September 13, 2026 (1.1.0 is not the first version)
   <br>
   <br>
-  Built with care for people who just want to make games.
+  Made for people who just want to make games.
 </p>
